@@ -146,10 +146,10 @@ def thread_send_sigfox(arg):
     global py
 
     # initial wait time to be sure sensor data were collected
-    time.sleep(30)
     sigfox_init()
+    time.sleep(30)
     while True:
-        sigfox_send("s",str(get_sensors_mp_temp()))
+        sigfox_send("f",get_sensors_mp_temp())
         # waiting 15min to send new data (=900)
         time.sleep(60)
     sigfox_terminate()
