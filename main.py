@@ -144,14 +144,24 @@ def set_led(color):
 
 def thread_send_sigfox(arg):
     global py
-
-    # initial wait time to be sure sensor data were collected
-    sigfox_init()
-    time.sleep(30)
     while True:
         sigfox_send("f",get_sensors_mp_temp())
+
+        this_sensor_battery=get_sensors_py_battery()
+        this_sensor_temp=get_sensors_mp_temp()
+        logging("Sensor 'battery' data =" + str(this_sensor_battery))
+        logging("Sensor 'temp' data =" + str(this_sensor_temp))
+        raw = bytearray(struct.pack("f", this_sensor_battery)+struct.pack("f", this_sensor_temp))
+        logging("Sent bytes=" + str(sigfox_network.send(raw)))
+
+        set_led(0x330000)
+        time.sleep(1)
+        logging("Data sent to Sigfox.")
+        set_led(0x000000)
+
         # waiting 15min to send new data (=900)
-        time.sleep(60)
+        machine.idle()
+        time.sleep(900)
     sigfox_terminate()
 
 # ################################################################
@@ -160,6 +170,7 @@ def thread_send_sigfox(arg):
 pycom.heartbeat(False)
 set_led(0x000000)
 
+sigfox_init()
 #_thread.start_new_thread(thread_get_sensordata, ("",))
 _thread.start_new_thread(thread_send_sigfox, ("",))
 logging("Please wait...Sigfox loop running...")
