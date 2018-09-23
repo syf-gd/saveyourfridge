@@ -174,16 +174,19 @@ def thread_send_sigfox(arg):
         raw = bytearray(struct.pack("f", this_sensor_battery)+struct.pack("f", this_sensor_temp))
         logging("Sent bytes            = " + str(sigfox_network.send(raw)))
 
-        set_led(0x330000)
+#        set_led(0x330000)
         time.sleep(1)
         logging("Data sent to Sigfox.")
-        set_led(0x000000)
+#        set_led(0x000000)
 
         # watchdog thread feed
         wdt.feed()
         # waiting 15min to send new data (=900)
 #        machine.idle()
-        time.sleep(900)
+#        time.sleep(900)
+        py.setup_sleep(900)
+        py.go_to_sleep()
+
     sigfox_terminate()
 
 def thread_heartbeat(arg):
@@ -204,6 +207,7 @@ set_led(0x000000)
 gc.enable()
 # init watchdog thread
 init_sd_card(False)
+py.setup_int_wake_up(True, True)
 
 # start main
 logging("")
@@ -220,4 +224,4 @@ wdt.feed()
 # init treads
 sigfox_init()
 _thread.start_new_thread(thread_send_sigfox, ("",))
-_thread.start_new_thread(thread_heartbeat, ("",))
+#_thread.start_new_thread(thread_heartbeat, ("",))
