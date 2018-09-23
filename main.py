@@ -8,6 +8,9 @@ from network import Sigfox
 import machine
 import time
 from machine import RTC
+# sdcard
+from machine import SD
+import os
 
 import socket
 import binascii
@@ -29,10 +32,32 @@ py = Pysense()
 # ########   functions
 # ################################################################
 
+def init_sd_card(format_bool):
+    sd = SD()
+    print("Formatting SD card ...")
+    os.mount(sd,"/sd")
+    if format_bool == True:
+        os.mkfs("/sd")
+    print("SD card formatted...")
+
+def log_sd_card(message):
+    try:
+        sd = SD()
+        f = open("/sd/syf.log", "a")
+        f.write(message)
+        f.close()
+    except Exception as e:
+        print("Error while accessing sd card...")
+        print("*************************************")
+        print(str(e))
+        print("*************************************")
+
 def do_garbage_collection():
-    gc.collect()
-    logging("GC - memory allocated = %s" % gc.mem_alloc())
-    logging("GC - free memory = %s" % gc.mem_free())
+        free = gc.mem_free()
+        if free < 30000:
+            gc.collect()
+            logging("GC - memory allocated = %s" % gc.mem_alloc())
+            logging("GC - free memory = %s" % gc.mem_free())
 
 def sigfox_init():
     global sigfox_network
@@ -54,7 +79,7 @@ def sigfox_send(format,data):
     global sigfox_network
     raw = bytearray(struct.pack(str(format), data))
     logging("Sending data to Sigfox network: %s" % raw)
-    logging("Sent bytes=" + str(sigfox_network.send(raw)))
+#    logging("Sent bytes=" + str(sigfox_network.send(raw)))
     logging("Data sent to Sigfox.")
 
 def sigfox_terminate():
@@ -66,6 +91,7 @@ def logging(msg):
     t = rtc.now()
     logstring ="%s-%s-%s %s:%s:%s.%s : %s" % ('{:04d}'.format(t[0]), '{:02d}'.format(t[1]), '{:02d}'.format(t[2]), '{:02d}'.format(t[3]), '{:02d}'.format(t[4]), '{:02d}'.format(t[5]), '{:06d}'.format(t[6]), msg)
     print(logstring)
+    log_sd_card(logstring)
 
 def get_sensors_mp_temp():
     global py
@@ -135,24 +161,17 @@ def set_led(color):
 # ################################################################
 # ########   threads
 # ################################################################
-#def thread_get_sensordata(arg):
-#    while True:
-#        set_led(0x7f0000)
-#        get_sensors_py_battery()
-#        set_led(0x7f0000)
-#        time.sleep(30)
-
 def thread_send_sigfox(arg):
     global py
     while True:
-        sigfox_send("f",get_sensors_mp_temp())
+        do_garbage_collection()
 
         this_sensor_battery=get_sensors_py_battery()
         this_sensor_temp=get_sensors_mp_temp()
-        logging("Sensor 'battery' data =" + str(this_sensor_battery))
-        logging("Sensor 'temp' data =" + str(this_sensor_temp))
+        logging("Sensor 'battery' data = " + str(this_sensor_battery))
+        logging("Sensor 'temp' data    = " + str(this_sensor_temp))
         raw = bytearray(struct.pack("f", this_sensor_battery)+struct.pack("f", this_sensor_temp))
-        logging("Sent bytes=" + str(sigfox_network.send(raw)))
+        logging("Sent bytes            = " + str(sigfox_network.send(raw)))
 
         set_led(0x330000)
         time.sleep(1)
@@ -164,13 +183,30 @@ def thread_send_sigfox(arg):
         time.sleep(900)
     sigfox_terminate()
 
+def thread_heartbeat(arg):
+    global py
+    while True:
+        set_led(0x000033)
+        time.sleep(0.3)
+        set_led(0x000000)
+        machine.idle()
+        time.sleep(60)
+
 # ################################################################
 # ########   main
 # ################################################################
 pycom.heartbeat(False)
 set_led(0x000000)
+init_sd_card(False)
+
+logging("")
+logging("")
+logging("#################################################")
+logging("##### SaveYourFridge v0.1 2018-09-24        #####")
+logging("#################################################")
+logging("")
+logging(os.uname())
 
 sigfox_init()
-#_thread.start_new_thread(thread_get_sensordata, ("",))
 _thread.start_new_thread(thread_send_sigfox, ("",))
-logging("Please wait...Sigfox loop running...")
+_thread.start_new_thread(thread_heartbeat, ("",))
