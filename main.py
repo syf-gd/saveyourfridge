@@ -8,6 +8,7 @@ from network import Sigfox
 import machine
 import time
 from machine import RTC
+from machine import WDT
 # sdcard
 from machine import SD
 import os
@@ -44,7 +45,7 @@ def log_sd_card(message):
     try:
         sd = SD()
         f = open("/sd/syf.log", "a")
-        f.write(message)
+        f.write(message+"\n")
         f.close()
     except Exception as e:
         print("Error while accessing sd card...")
@@ -164,7 +165,7 @@ def set_led(color):
 def thread_send_sigfox(arg):
     global py
     while True:
-        do_garbage_collection()
+#        do_garbage_collection()
 
         this_sensor_battery=get_sensors_py_battery()
         this_sensor_temp=get_sensors_mp_temp()
@@ -178,8 +179,10 @@ def thread_send_sigfox(arg):
         logging("Data sent to Sigfox.")
         set_led(0x000000)
 
+        # watchdog thread feed
+        wdt.feed()
         # waiting 15min to send new data (=900)
-        machine.idle()
+#        machine.idle()
         time.sleep(900)
     sigfox_terminate()
 
@@ -195,10 +198,14 @@ def thread_heartbeat(arg):
 # ################################################################
 # ########   main
 # ################################################################
+# init
 pycom.heartbeat(False)
 set_led(0x000000)
+gc.enable()
+# init watchdog thread
 init_sd_card(False)
 
+# start main
 logging("")
 logging("")
 logging("#################################################")
@@ -206,7 +213,11 @@ logging("##### SaveYourFridge v0.1 2018-09-24        #####")
 logging("#################################################")
 logging("")
 logging(os.uname())
+logging("Initializing watch dog thread (1200 seconds/20mins)...")
+wdt = WDT(timeout=1200000)  # enable it with a timeout of 1 seconds (1000)*1200 (=20min)
+wdt.feed()
 
+# init treads
 sigfox_init()
 _thread.start_new_thread(thread_send_sigfox, ("",))
 _thread.start_new_thread(thread_heartbeat, ("",))
