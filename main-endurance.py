@@ -7,7 +7,6 @@ import sys
 from network import Sigfox
 import socket
 import ubinascii
-import struct
 
 import time
 import machine
@@ -48,9 +47,9 @@ wdt.feed()
 while True:
     rtc = machine.RTC()
     t = rtc.now()
-#    print("%s-%s-%s %s:%s:%s.%s : %s" % ('{:04d}'.format(t[0]), '{:02d}'.format(t[1]), '{:02d}'.format(t[2]), '{:02d}'.format(t[3]), '{:02d}'.format(t[4]), '{:02d}'.format(t[5]), '{:06d}'.format(t[6]), "Running..."))
+    print("%s-%s-%s %s:%s:%s.%s : %s" % ('{:04d}'.format(t[0]), '{:02d}'.format(t[1]), '{:02d}'.format(t[2]), '{:02d}'.format(t[3]), '{:02d}'.format(t[4]), '{:02d}'.format(t[5]), '{:06d}'.format(t[6]), "Running..."))
 
-    print(s.send(bytearray(struct.pack("f", py.read_battery_voltage())+struct.pack("f", 0))))
+    print(s.send(bytes([0x48, 0x65, 0x6C,  0x6C, 0x6F, 0x20, 0x50, 0x79, 0x63, 0x6F, 0x6D, 0x21])))
 
     wdt.feed()
     py.setup_sleep(900)
