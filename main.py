@@ -19,7 +19,7 @@ from pysense import Pysense
 #from LIS2HH12 import LIS2HH12
 #from SI7006A20 import SI7006A20
 #from LTR329ALS01 import LTR329ALS01
-#from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
+from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
 
 py = Pysense()
 
@@ -50,7 +50,8 @@ while True:
     t = rtc.now()
 #    print("%s-%s-%s %s:%s:%s.%s : %s" % ('{:04d}'.format(t[0]), '{:02d}'.format(t[1]), '{:02d}'.format(t[2]), '{:02d}'.format(t[3]), '{:02d}'.format(t[4]), '{:02d}'.format(t[5]), '{:06d}'.format(t[6]), "Running..."))
 
-    print(s.send(bytearray(struct.pack("f", py.read_battery_voltage())+struct.pack("f", 0))))
+
+    print(s.send(bytearray(struct.pack("f", py.read_battery_voltage())+struct.pack("f", MPL3115A2(py,mode=ALTITUDE).temperature()))))
 
     wdt.feed()
     py.setup_sleep(900)
