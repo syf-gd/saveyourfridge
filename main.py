@@ -50,8 +50,10 @@ while True:
     t = rtc.now()
 #    print("%s-%s-%s %s:%s:%s.%s : %s" % ('{:04d}'.format(t[0]), '{:02d}'.format(t[1]), '{:02d}'.format(t[2]), '{:02d}'.format(t[3]), '{:02d}'.format(t[4]), '{:02d}'.format(t[5]), '{:06d}'.format(t[6]), "Running..."))
 
-
-    print(s.send(bytearray(struct.pack("f", py.read_battery_voltage())+struct.pack("f", MPL3115A2(py,mode=ALTITUDE).temperature()))))
+    _battery=py.read_battery_voltage()
+    _temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
+#    print("%s , %s" % (_battery,_temperature))
+    print(s.send(bytearray(struct.pack("f", _battery)+struct.pack("f", _temperature))))
 
     wdt.feed()
     py.setup_sleep(900)
