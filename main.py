@@ -1,4 +1,10 @@
 # ################################################################
+# ########   vars
+# ################################################################
+WAITTIME_SLEEP=900
+WAITTIME_DEEPSLEEP=1200000
+
+# ################################################################
 # ########   imports
 # ################################################################
 # ----------------------------------------------------------------
@@ -42,7 +48,7 @@ s.setblocking(True)
 s.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False)
 
 
-wdt = WDT(timeout=1200000)  # enable it with a timeout of 1 seconds (1000)*1200 (=20min)
+wdt = WDT(timeout=WAITTIME_DEEPSLEEP)  # enable it with a timeout of 1 seconds (1000)*1200 (=20min)
 wdt.feed()
 
 while True:
@@ -56,5 +62,5 @@ while True:
     print(s.send(bytearray(struct.pack("f", _battery)+struct.pack("f", _temperature))))
 
     wdt.feed()
-    py.setup_sleep(900)
+    py.setup_sleep(WAITTIME_SLEEP)
     py.go_to_sleep()
