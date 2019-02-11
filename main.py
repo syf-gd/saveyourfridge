@@ -14,8 +14,8 @@
 measurement_interval=30             # #=seconds a measurement will be done (30=>5 minutes)
 transmission_interval=3600          # #=seconds a message will be sent (independently of alarm) (3600=>15 minutes)
 anomaly_detection_difference = 2    # #=differences in degrees(celsius) to send alarm by device
-low_power_consumption_mode = 0      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
-send_all_data = 1                   # 1=send every measurement
+low_power_consumption_mode = 1      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
+send_all_data = 0                   # 1=send every measurement
 fast_boot = 1                       # 1=no signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
 
@@ -63,8 +63,9 @@ sigfox_network.setblocking(True)
 sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False)
 device_id = binascii.hexlify(sigfox.id())
 device_pac = binascii.hexlify(sigfox.pac())
-print("DEVICE ID : %s" % (device_id))
-print("DEVICE PAC: %s" % (device_pac))
+if low_power_consumption_mode == 0:
+    print("DEVICE ID : %s" % (device_id))
+    print("DEVICE PAC: %s" % (device_pac))
 
 # ################################################################
 # ########   pre-check
@@ -101,14 +102,15 @@ while True:
         #print("transmission_interval=%s" % transmission_interval)
         #print("intervals=%s" % intervals)
         #print("this_interval=%s" % str(this_interval))
-        print("temperature (this) [%s]: %s ((temp-80)/2=%s)" % (device_id, now_temperature, original_temperature))
-        print("temperature (old)  [%s]: %s ((temp-80)/2)"  % (device_id, old_temperature))
-        print("temperature anomaly[%s]: %s (>=)" % (device_id, anomaly_detection_difference))
+        if low_power_consumption_mode == 0:
+            print("temperature (this) [%s]: %s ((temp-80)/2=%s)" % (device_id, now_temperature, original_temperature))
+            print("temperature (old)  [%s]: %s ((temp-80)/2)"  % (device_id, old_temperature))
+            print("temperature anomaly[%s]: %s (>=)" % (device_id, anomaly_detection_difference))
 
     if init_count == 0:
         # first start => send message
             if low_power_consumption_mode == 0:
-                print("sending first value after restart... (green:%s; v:%s)" % (now_temperature, old_temperature, protocol_version))
+                print("sending first value after restart... (green:%s; v:%s)" % (now_temperature, protocol_version))
             if low_power_consumption_mode == 0:
                 pycom.rgbled(0x007f00)
             sigfox_network.send(bytes([protocol_version,now_temperature]))
@@ -122,7 +124,7 @@ while True:
                 print("sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
             
             pycom.rgbled(0x7f0000)
-            sigfox_network.send(bytes([protocol_version,now_temperature,old_temperature]))
+            sigfox_network.send(bytes([protocol_version,now_temperature]))
             pycom.rgbled(0x000000)
             this_interval=0
             already_sent=1
