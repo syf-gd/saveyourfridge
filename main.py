@@ -14,7 +14,7 @@
 measurement_interval=30             # #=seconds a measurement will be done (30=>5 minutes)
 transmission_interval=3600          # #=seconds a message will be sent (independently of alarm) (3600=>15 minutes)
 anomaly_detection_difference = 2    # #=differences in degrees(celsius) to send alarm by device
-low_power_consumption_mode = 1      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
+low_power_consumption_mode = 0      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
 send_all_data = 0                   # 1=send every measurement
 fast_boot = 1                       # 1=no signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
