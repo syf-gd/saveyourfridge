@@ -22,6 +22,9 @@ protocol_version=1                  # #=1-254 (change, if data format changed)
 # protocol versions:
 # (1)   initial version
 #       AABB; AA=protocaol version, BB=temperature
+# (?)
+#
+# (255) AA00; AA=protocol version; 00=dummy message
 
 # ################################################################
 # ################################################################
@@ -60,7 +63,7 @@ wdt.feed()
 sigfox = Sigfox(mode=Sigfox.SIGFOX, rcz=Sigfox.RCZ1)
 sigfox_network = socket.socket(socket.AF_SIGFOX, socket.SOCK_RAW)
 sigfox_network.setblocking(True)
-sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False)
+sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False) # true=downlink
 device_id = binascii.hexlify(sigfox.id())
 device_pac = binascii.hexlify(sigfox.pac())
 if low_power_consumption_mode == 0:
@@ -74,12 +77,18 @@ if low_power_consumption_mode == 0:
 # test uplink/downlink - if successful, send green light, else red light
 if fast_boot == 0:
     pycom.rgbled(0x007f00)
+    #send dummy message
+    sigfox_network.send(bytes([255,0]))
+    recv_message=sigfox_network.recv(32)
+    print("recv msg: %s" % (str(recv_message))
     time.sleep(5)
     pycom.rgbled(0x000000)
 
 # ################################################################
 # ########   measurement loop
 # ################################################################
+# sigfox: change to uplink messages only
+sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False) # false=only uplink
 this_interval=0
 init_count=0
 old_temperature=0
