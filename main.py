@@ -16,7 +16,8 @@ transmission_interval=3600          # #=seconds a message will be sent (independ
 anomaly_detection_difference = 2    # #=differences in degrees(celsius) to send alarm by device
 low_power_consumption_mode = 0      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
 send_all_data = 0                   # 1=send every measurement
-fast_boot = 1                       # 1=no signal strength test at boot
+fast_boot = 0                       # no operational feedback at boot - ATTENTION: "0" is the only way to re-deploy code to the board without flashing the firmware!
+no_singnal_test = 1                 # 1=no signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
 
 # protocol versions:
@@ -77,12 +78,20 @@ if low_power_consumption_mode == 0:
 # test uplink/downlink - if successful, send green light, else red light
 if fast_boot == 0:
     pycom.rgbled(0x007f00)
-    #send dummy message
-    sigfox_network.send(bytes([255,0]))
-    recv_message=sigfox_network.recv(32)
-    print("recv msg: %s" % (str(recv_message))
-    time.sleep(5)
+
+if no_singnal_test == 0:
+    print("send strength test message")
+    sigfox_network.send(bytes([255,255,0]))
+    print("waiting for feedback message")
+    sigfox_network.recv(32)
+#    print("recv msg: %s" % (str(recv_message)))
+    print("received ssignal stregth: %s" % (str(sigfox.rssi())))
+
+if fast_boot == 0:
+    if no_singnal_test == 1:
+        time.sleep(5)
     pycom.rgbled(0x000000)
+
 
 # ################################################################
 # ########   measurement loop
