@@ -36,7 +36,7 @@ disable_low_power_on_usb=1          # disable low power mode if usb connection i
 # ################################################################
 # ################################################################
 color_blue=0x00007f
-color_orange=0xfd6a02
+color_orange=0xea3602
 color_red=0x7f0000
 color_green=0x007f00
 color_black=0x000000
@@ -155,7 +155,7 @@ while True:
     # round to floor
     if low_power_consumption_mode == 0:
         print("measuring...")
-        pycom.rgbled(color_blue)
+        pycom.rgbled(low_power_mode_indicator)
     original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
     now_temperature = int(original_temperature*2+80)
     if low_power_consumption_mode == 0:

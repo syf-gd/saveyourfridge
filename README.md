@@ -31,16 +31,16 @@ https://marketplace.visualstudio.com/items?itemName=pycom.Pymakr
 ### LED codes
 | LED code | Duration | Definition |
 |--|--|--|--|
-| blue, orange | 10x | power saving mode indicator (blue=high power consumption, orange=low power consumption (energy saver)) |
-| blue | 1 sec. | measurement phase |
+| blue, orange | # | power saving mode indicator (blue=high power consumption, orange=low power consumption (energy saver)) |
+| blue, orange | 1 sec. | measurement phase |
 | green | 1 sec. | transmitting valid sensor data |
 | red | 1 sec. | transmitting alarm (invalid) sensor data |
-> Note: If signal strength test fails please replace the sensor an re-prlug batteries to device. The strength test will be executed. If replacement will not help to get a better signal strength, please do not operate this device in productive environments (as it will get not stable connection)
+> Note: If signal strength test fails please replace the sensor an re-plug batteries to device. The strength test will be executed. If replacement will not help to get a better signal strength, please do not operate this device in a productive environment (as it will not get a stable connection).
 ### Boot procedere
 | LED indicator at boot | description |
 |--|--|
 | 5 x *-, 1x *---, 5 x *- | The first 5x LED indicated starting the signal test, the long LED signal is the phase waiting for an result and the löast 5x blinking indicates a average/good signal strength|
-| 5 x *-, 1x *---, ~ x *- | The first 5x LED indicated starting the signal test, the long LED signal is the phase waiting for an result and the last 5x blinking indicates a poor signal strength. Please power off the device, replace the device to an other location. Please power on the device to test the signal strength again. If the signal strength is still poor, retry the test several time - the network may be slow or anreachaable at the moment. If the signal quality keep poor, please do not operate the device.
+| 5 x *-, 1x *---, ~ x *- | The first 5x LED indicated starting the signal test, the long LED signal is the phase waiting for an result and the last 5x blinking indicates a poor signal strength. Please power off the device, replace the device to an other location. Please power on the device to test the signal strength again. If the signal strength is still poor, retry the test several times - the network may be slow or anreachable temporary. If the signal quality keep poor, please do not operate the device.
 ### Sensor data transmission
 #### Signal strength
 |RSSI|Number of basestation|Link Quality indicator|
