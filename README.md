@@ -27,11 +27,8 @@ https://code.visualstudio.com/download
 https://marketplace.visualstudio.com/items?itemName=pycom.Pymakr
 
 > Inoperability VScode with Pymakr Plugin: Please install VSCode 1.30.x with Pymakr 1.05 plugin - this combination works great. The following links give a good instruction, what do do, to downgrade to these versions
-
 > https://code.visualstudio.com/updates/v1_30
-
 > https://forum.pycom.io/topic/3808/i-have-a-problem-with-vscode-and-the-pymakr-plugin
-
 > https://github.com/Microsoft/vscode/issues/68230
 
 
