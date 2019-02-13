@@ -45,7 +45,7 @@ https://marketplace.visualstudio.com/items?itemName=pycom.Pymakr
 |--|--|--|--|
 | measurement_interval | # | 30 | seconds a measurement will be done (30=>5 minutes) |
 | transmission_interval | # | 3600 | seconds a message will be sent (independently of alarm) (3600=>15 minutes) |
-| anomaly_detection_difference | # | # | 2 differences in degrees(celsius) to send alarm by device |
+| anomaly_detection_difference | # | 2 | difference in degrees(celsius) to send alarm by device |
 | low_power_consumption_mode | 0,1 | 0 | send device to deep sleep mode (1) Attention: system is not connectable anymore |
 | send_all_data | 0,1 | 0 | send every measurement (1)
 | fast_boot | 0,1 | 0 | no operational feedback at boot - ATTENTION: "0" is the only way to re-deploy code to the board without flashing the firmware! |
