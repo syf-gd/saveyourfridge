@@ -60,6 +60,16 @@ https://marketplace.visualstudio.com/items?itemName=pycom.Pymakr
 
 
 ### Sensor data transmission
+
+#### Signal strength
+Source: https://support.sigfox.com/docs/link-quality:-general-knowledge
+|RSSI|Number of basestation|Link Quality indicator
+-122dBm < RSSI|3|EXCELLENT
+-135dBm < RSSI ≤ -122dBm|3|GOOD
+-122dBm < RSSI|1 or 2|GOOD
+-135dBm < RSSI ≤ -122dBm|1 or 2|AVERAGE
+RSSI ≤ -135dBm|any|LIMIT
+
 #### Sensor data
 Data transmission include the following data
 | Data | Description |
@@ -86,6 +96,7 @@ Broker ->> Splunk: sensor data
 Note right of Splunk: technical data <br/>management
 Broker ->> Metabase: sensor data
 Note right of Metabase: user access to <br/>sensor data via <br/>interims dashboard.
+Sensor ->> STOP: signal strength < -130db
 
 ```  
 

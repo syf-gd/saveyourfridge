@@ -14,11 +14,12 @@
 measurement_interval=30             # #=seconds a measurement will be done (30=>5 minutes)
 transmission_interval=3600          # #=seconds a message will be sent (independently of alarm) (3600=>15 minutes)
 anomaly_detection_difference = 2    # #=differences in degrees(celsius) to send alarm by device
-low_power_consumption_mode = 1      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
+low_power_consumption_mode = 0      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
 send_all_data = 0                   # 1=send every measurement
 fast_boot = 0                       # no operational feedback at boot - ATTENTION: "0" is the only way to re-deploy code to the board without flashing the firmware!
-signal_test = 0                     # 1=do signal strength test at boot
+signal_test = 1                     # 1=do signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
+rssi_dbm_limit=-130                 # limit of rssi strength (-135...-122)
 
 # protocol versions:
 # (1)   initial version
@@ -32,7 +33,11 @@ protocol_version=1                  # #=1-254 (change, if data format changed)
 # ########   +++++ NO CHANGES BELOW THIS LINE +++++
 # ################################################################
 # ################################################################
-
+color_blue=0x00007f
+color_orange=0xfd6a02
+color_red=0x7f0000
+color_green=0x007f00
+color_black=0x000000
 
 # ################################################################
 # ########   imports
@@ -64,7 +69,7 @@ wdt.feed()
 sigfox = Sigfox(mode=Sigfox.SIGFOX, rcz=Sigfox.RCZ1)
 sigfox_network = socket.socket(socket.AF_SIGFOX, socket.SOCK_RAW)
 sigfox_network.setblocking(True)
-sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False) # true=downlink
+sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, True) # true=downlink
 device_id = binascii.hexlify(sigfox.id())
 device_pac = binascii.hexlify(sigfox.pac())
 if low_power_consumption_mode == 0:
@@ -77,20 +82,43 @@ if low_power_consumption_mode == 0:
 # fake green status
 # test uplink/downlink - if successful, send green light, else red light
 if fast_boot == 0:
-    pycom.rgbled(0x007f00)
+    pycom.rgbled(color_orange)
 
 if signal_test == 1:
-    print("send strength test message")
+    signal_strength=-134
+    if low_power_consumption_mode == 0:
+        print("send strength test message")
     sigfox_network.send(bytes([255,255,0]))
-    print("waiting for feedback message")
-    sigfox_network.recv(32)
-#    print("recv msg: %s" % (str(recv_message)))
-    print("received ssignal stregth: %s" % (str(sigfox.rssi())))
+    if low_power_consumption_mode == 0:
+        print("waiting for feedback message")
+    try:
+        sigfox_network.recv(32)
+        signal_strength=sigfox.rssi()
+    except:
+        # every error will stop strength test
+        signal_strength=-500
+    if low_power_consumption_mode == 0:
+        print("received signal stregth: %s" % (str(signal_strength)))
 
 if fast_boot == 0:
+    if signal_test == 1:
+        if signal_strength < rssi_dbm_limit:
+            while True:
+                pycom.rgbled(color_red)
+                time.sleep(1)
+                pycom.rgbled(color_black)
+                time.sleep(1)
+                if low_power_consumption_mode == 0:
+                    print("ERROR: signal stregth below limit: %s < %s" % (str(signal_strength),str(rssi_dbm_limit)))
+        if signal_strength >= rssi_dbm_limit:
+            pycom.rgbled(color_green)
+            if low_power_consumption_mode == 0:
+                print("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
+            time.sleep(50)
+
     if signal_test == 0:
         time.sleep(5)
-    pycom.rgbled(0x000000)
+    pycom.rgbled(color_black)
 
 
 # ################################################################
@@ -108,7 +136,7 @@ while True:
     # round to floor
     if low_power_consumption_mode == 0:
         print("measuring...")
-        pycom.rgbled(0x00007f)
+        pycom.rgbled(color_blue)
     original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
     now_temperature = int(original_temperature*2+80)
     if low_power_consumption_mode == 0:
@@ -130,10 +158,10 @@ while True:
             if low_power_consumption_mode == 0:
                 print("sending first value after restart... (green:%s; v:%s)" % (now_temperature, protocol_version))
             if low_power_consumption_mode == 0:
-                pycom.rgbled(0x007f00)
+                pycom.rgbled(color_green)
             sigfox_network.send(bytes([protocol_version,now_temperature]))
             if low_power_consumption_mode == 0:
-                pycom.rgbled(0x000000)
+                pycom.rgbled(color_black)
 
     if init_count == 1:
         # only if first measurement completed
@@ -141,9 +169,9 @@ while True:
             if low_power_consumption_mode == 0:
                 print("sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
             
-            pycom.rgbled(0x7f0000)
+            pycom.rgbled(color_red)
             sigfox_network.send(bytes([protocol_version,now_temperature]))
-            pycom.rgbled(0x000000)
+            pycom.rgbled(color_black)
             this_interval=0
             already_sent=1
 
@@ -158,7 +186,7 @@ while True:
             sigfox_network.send(bytes([protocol_version,now_temperature]))
             #pybytes.send_virtual_pin_value(False,15,int(now_temperature))
             this_interval=0
-            pycom.rgbled(0x000000)
+            pycom.rgbled(color_black)
 
     wdt.feed()
     if low_power_consumption_mode == 0:
