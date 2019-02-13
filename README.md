@@ -53,11 +53,14 @@ https://marketplace.visualstudio.com/items?itemName=pycom.Pymakr
 
 | LED code | Duration | Definition |
 |--|--|--|--|
-| green | 5 sec. | signal strength test at boot |
-| blue | 1 sec. | measurement |
+| orange | 5 sec. | signal strength test |
+| green | 5 sec. | signal strength test at boot succeeded |
+| red | loop | signal strength test at boot failed |
+| blue | 1 sec. | measurement phase |
 | green | 1 sec. | transmitting valid sensor data |
 | red | 1 sec. | transmitting alarm (invalid) sensor data |
 
+> Note: If signal strength test fails please replace the sensor an re-prlug batteries to device. The strength test will be executed. If replacement will not help to get a better signal strength, please do not operate this device in productive environments (as it will get not stable connection)
 
 ### Sensor data transmission
 
