@@ -56,6 +56,7 @@ from pysense import Pysense
 from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
 import gc
 import time
+import errno
 
 py = Pysense()
 
@@ -115,7 +116,6 @@ if signal_test == 1:
         signal_strength=sigfox.rssi()
     except:
         # every error will stop strength test
-        print("signal strength test failed (err=%s)" % (os.strerror(errno.errorcode¶)))
         signal_strength=-500
 
     if low_power_consumption_mode == 0:
