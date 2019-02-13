@@ -104,15 +104,18 @@ if signal_test == 1:
     signal_strength=-500        # default value
     if low_power_consumption_mode == 0:
         print("send strength test message")
-    sigfox_network.send(bytes([255,255,0]))
-    if low_power_consumption_mode == 0:
-        print("waiting for feedback message")
     try:
+        sigfox_network.send(bytes([255,255,0]))
+
+        if low_power_consumption_mode == 0:
+            print("waiting for feedback message")
+
         sigfox_network.recv(32)
         signal_strength=sigfox.rssi()
     except:
         # every error will stop strength test
         signal_strength=-500
+
     if low_power_consumption_mode == 0:
         print("received signal stregth: %s" % (str(signal_strength)))
     if signal_strength < rssi_dbm_limit:
