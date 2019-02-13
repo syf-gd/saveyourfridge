@@ -53,6 +53,7 @@ https://marketplace.visualstudio.com/items?itemName=pycom.Pymakr
 
 | LED code | Duration | Definition |
 |--|--|--|--|
+| blue, orange | 10x | power mode indicator (blue=high, orange=low (energy saver)) |
 | orange | 5 sec. | signal strength test |
 | green | 5 sec. | signal strength test at boot succeeded |
 | red | loop | signal strength test at boot failed |
@@ -87,11 +88,17 @@ compression:
 decompression:
 `temp_dedecompressed = ((int(temp_hex[2:],16)-80)/2)`
 
+#### LED indicator phases
+1. Check power mode => blue=high, orange, low
+2. Power mode indictor (LED on 3x flashing)
+3. Signal test (LED on)
+4. Signal test result (Power on 3x = ok, LED flashing = nok)
+
 #### Data transmission
 ```mermaid
 sequenceDiagram
 Sensor -->> Sigfox Backend: signal strength test
-Sigfox Backend-->>Sensor: signal strength?
+Sigfox Backend -->>Sensor: signal strength?
 Sensor ->> Sigfox Backend: sensor data
 Sigfox Backend ->> Broker: sensor data
 Broker -->> Broker Database: sensor data

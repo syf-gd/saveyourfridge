@@ -14,12 +14,14 @@
 measurement_interval=30             # #=seconds a measurement will be done (30=>5 minutes)
 transmission_interval=3600          # #=seconds a message will be sent (independently of alarm) (3600=>15 minutes)
 anomaly_detection_difference = 2    # #=differences in degrees(celsius) to send alarm by device
-low_power_consumption_mode = 0      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
+low_power_consumption_mode = 1      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
 send_all_data = 0                   # 1=send every measurement
 fast_boot = 0                       # no operational feedback at boot - ATTENTION: "0" is the only way to re-deploy code to the board without flashing the firmware!
 signal_test = 1                     # 1=do signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
 rssi_dbm_limit=-130                 # limit of rssi strength (-135...-122)
+disable_low_power_on_usb=1          # disable low power mode if usb connection is detected
+
 
 # protocol versions:
 # (1)   initial version
@@ -66,6 +68,12 @@ py.setup_int_wake_up(True, True)
 wdt = WDT(timeout=1200000)  # enable it with a timeout of 1 seconds (1000)*1200 (=20min)
 wdt.feed()
 
+battery_voltage=py.read_battery_voltage()
+if disable_low_power_on_usb == 1:
+    if battery_voltage > 4.2:
+        low_power_consumption_mode=0
+        print("USB connection detected, disable low power mode (voltage=%s)" % (str(py.read_battery_voltage())))
+
 sigfox = Sigfox(mode=Sigfox.SIGFOX, rcz=Sigfox.RCZ1)
 sigfox_network = socket.socket(socket.AF_SIGFOX, socket.SOCK_RAW)
 sigfox_network.setblocking(True)
@@ -79,13 +87,21 @@ if low_power_consumption_mode == 0:
 # ################################################################
 # ########   pre-check
 # ################################################################
-# fake green status
-# test uplink/downlink - if successful, send green light, else red light
-if fast_boot == 0:
-    pycom.rgbled(color_orange)
+if low_power_consumption_mode == 0:
+    low_power_mode_indicator=color_blue
+else:
+    low_power_mode_indicator=color_orange
+
+for x in range(4):
+    # indicate power mode (blue=high power, orange=low power)
+    time.sleep(0.1)
+    pycom.rgbled(color_black)
+    time.sleep(0.1)
+    pycom.rgbled(low_power_mode_indicator)
 
 if signal_test == 1:
-    signal_strength=-134
+    # test uplink/downlink - if successful, send green light, else red light
+    signal_strength=-500        # default value
     if low_power_consumption_mode == 0:
         print("send strength test message")
     sigfox_network.send(bytes([255,255,0]))
@@ -99,25 +115,23 @@ if signal_test == 1:
         signal_strength=-500
     if low_power_consumption_mode == 0:
         print("received signal stregth: %s" % (str(signal_strength)))
+    if signal_strength < rssi_dbm_limit:
+        if low_power_consumption_mode == 0:
+            print("ERROR: signal stregth below limit: %s < %s" % (str(signal_strength),str(rssi_dbm_limit)))
+        while True:
+            pycom.rgbled(low_power_mode_indicator)
+            time.sleep(0.1)
+            pycom.rgbled(color_black)
+            time.sleep(0.1)
+    if signal_strength >= rssi_dbm_limit:
+        if low_power_consumption_mode == 0:
+            print("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
+        for x in range(4):
+            pycom.rgbled(low_power_mode_indicator)
+            time.sleep(0.1)
+            pycom.rgbled(color_black)
+            time.sleep(0.1)
 
-if fast_boot == 0:
-    if signal_test == 1:
-        if signal_strength < rssi_dbm_limit:
-            while True:
-                pycom.rgbled(color_red)
-                time.sleep(1)
-                pycom.rgbled(color_black)
-                time.sleep(1)
-                if low_power_consumption_mode == 0:
-                    print("ERROR: signal stregth below limit: %s < %s" % (str(signal_strength),str(rssi_dbm_limit)))
-        if signal_strength >= rssi_dbm_limit:
-            pycom.rgbled(color_green)
-            if low_power_consumption_mode == 0:
-                print("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
-            time.sleep(50)
-
-    if signal_test == 0:
-        time.sleep(5)
     pycom.rgbled(color_black)
 
 
