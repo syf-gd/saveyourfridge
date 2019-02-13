@@ -14,10 +14,10 @@
 measurement_interval=30             # #=seconds a measurement will be done (30=>5 minutes)
 transmission_interval=3600          # #=seconds a message will be sent (independently of alarm) (3600=>15 minutes)
 anomaly_detection_difference = 2    # #=differences in degrees(celsius) to send alarm by device
-low_power_consumption_mode = 0      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
+low_power_consumption_mode = 1      # 1=send device to deep sleep mode (attention: system is not connectable anymore)
 send_all_data = 0                   # 1=send every measurement
 fast_boot = 0                       # no operational feedback at boot - ATTENTION: "0" is the only way to re-deploy code to the board without flashing the firmware!
-no_singnal_test = 1                 # 1=no signal strength test at boot
+signal_test = 0                     # 1=do signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
 
 # protocol versions:
@@ -79,7 +79,7 @@ if low_power_consumption_mode == 0:
 if fast_boot == 0:
     pycom.rgbled(0x007f00)
 
-if no_singnal_test == 0:
+if signal_test == 1:
     print("send strength test message")
     sigfox_network.send(bytes([255,255,0]))
     print("waiting for feedback message")
@@ -88,7 +88,7 @@ if no_singnal_test == 0:
     print("received ssignal stregth: %s" % (str(sigfox.rssi())))
 
 if fast_boot == 0:
-    if no_singnal_test == 1:
+    if signal_test == 0:
         time.sleep(5)
     pycom.rgbled(0x000000)
 
