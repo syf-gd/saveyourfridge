@@ -40,6 +40,7 @@ color_orange=0xea3602
 color_red=0x7f0000
 color_green=0x007f00
 color_black=0x000000
+color_white=0x444444
 
 # ################################################################
 # ########   imports
@@ -56,7 +57,7 @@ from pysense import Pysense
 from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
 import gc
 import time
-import errno
+
 
 py = Pysense()
 
@@ -89,10 +90,10 @@ if low_power_consumption_mode == 0:
 # ################################################################
 # ########   pre-check
 # ################################################################
-if low_power_consumption_mode == 0:
-    low_power_mode_indicator=color_blue
-else:
-    low_power_mode_indicator=color_orange
+
+low_power_mode_indicator=color_white
+low_power_mode_indicator_ok=color_white
+low_power_mode_indicator_fail=color_red
 
 for x in range(4):
     # indicate power mode (blue=high power, orange=low power)
@@ -107,16 +108,24 @@ if signal_test == 1:
     if low_power_consumption_mode == 0:
         print("send strength test message")
     try:
+        error_position="send"
         sigfox_network.send(bytes([255,255,0]))
-
+        
+        error_position="send2"
         if low_power_consumption_mode == 0:
             print("waiting for feedback message")
 
+        error_position="recv"
         sigfox_network.recv(32)
+
+        error_position="rssi"
         signal_strength=sigfox.rssi()
+
     except:
         # every error will stop strength test
         signal_strength=-500
+        if low_power_consumption_mode == 0:
+            print("error while waiting for signal strength test (position=%s)" % (error_position))
 
     if low_power_consumption_mode == 0:
         print("received signal stregth: %s" % (str(signal_strength)))
@@ -124,15 +133,15 @@ if signal_test == 1:
         if low_power_consumption_mode == 0:
             print("ERROR: signal stregth below limit: %s < %s" % (str(signal_strength),str(rssi_dbm_limit)))
         while True:
-            pycom.rgbled(low_power_mode_indicator)
+            pycom.rgbled(low_power_mode_indicator_fail)
             time.sleep(0.1)
             pycom.rgbled(color_black)
             time.sleep(0.1)
-    if signal_strength >= rssi_dbm_limit:
+    else:
         if low_power_consumption_mode == 0:
             print("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
         for x in range(4):
-            pycom.rgbled(low_power_mode_indicator)
+            pycom.rgbled(low_power_mode_indicator_ok)
             time.sleep(0.1)
             pycom.rgbled(color_black)
             time.sleep(0.1)
