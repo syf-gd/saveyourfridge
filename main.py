@@ -3,10 +3,12 @@
 # ################################################################
 # LED status indication:
 #
-# green (>5sec) =   Init ok
-# red   (>5sec) =   Init failed
-# blue  (<5sec) =   sending data
-# green (<5sec) =   sending alarm
+# white (0-20sec.)  =   Init
+# white (5x)        =   Init ok
+# red   (~x)        =   Init failed
+# blue  (<5sec)     =   measurement
+# green (<5sec)     =   sending data (ok)
+# red   (<5sec)     =   sending alarm (nok)
 
 # ################################################################
 # ########   Variables
@@ -164,7 +166,7 @@ while True:
     # round to floor
     if low_power_consumption_mode == 0:
         print("measuring...")
-        pycom.rgbled(low_power_mode_indicator)
+        pycom.rgbled(color_blue)
     original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
     now_temperature = int(original_temperature*2+80)
     if low_power_consumption_mode == 0:
