@@ -13,8 +13,8 @@
 # ################################################################
 # ########   Variables
 # ################################################################
-measurement_interval=10             # #=seconds a measurement will be done (300=>5 minutes)
-transmission_interval=100           # #=seconds a message will be sent (independently of alarm) (3600=>15 minutes)
+measurement_interval=300             # #=seconds a measurement will be done (300=>5 minutes)
+transmission_interval=3600           # #=seconds a message will be sent (independently of alarm) (3600=>15 minutes)
 anomaly_detection_difference = 2     # #=differences in degrees(celsius) to send alarm by device
 low_power_consumption_mode = 1       # 1=send device to deep sleep mode (attention: system is not connectable anymore)
 send_all_data = 0                    # 1=send every measurement
@@ -105,12 +105,12 @@ low_power_mode_indicator=color_white
 low_power_mode_indicator_ok=color_white
 low_power_mode_indicator_fail=color_red
 
-for x in range(4):
+#for x in range(4):
     # indicate power mode (blue=high power, orange=low power)
-    time.sleep(0.1)
-    pycom.rgbled(color_black)
-    time.sleep(0.1)
-    pycom.rgbled(low_power_mode_indicator)
+#    time.sleep(0.1)
+#    pycom.rgbled(color_black)
+#    time.sleep(0.1)
+#    pycom.rgbled(low_power_mode_indicator)
 
 if signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
     # test uplink/downlink - if successful, send green light, else red light
@@ -151,8 +151,8 @@ if signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
     else:
         if low_power_consumption_mode == 0:
             print("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
-            pycom.nvs_set('signaltest_done', 1)
-            print("NVRAM set: signaltest_done = 1")
+        pycom.nvs_set('signaltest_done', 1)
+        print("NVRAM set: signaltest_done = 1")
         for x in range(4):
             pycom.rgbled(low_power_mode_indicator_ok)
             time.sleep(0.1)
@@ -176,7 +176,8 @@ pycom.nvs_set('last_temp', 0)
 while True:
     #this_interval += 1
     countInterval()
-    already_sent = 0
+    #already_sent = 0
+    pycom.nvs_set('already_sent', 0)
 
     # round to floor
     if low_power_consumption_mode == 0:
@@ -214,14 +215,15 @@ while True:
             sigfox_network.send(bytes([protocol_version,now_temperature]))
             pycom.rgbled(color_black)
             pycom.nvs_set('interval', 0)
+            pycom.nvs_set('already_sent', 1)
             #this_interval=0
-            already_sent=1
+            #already_sent=1
             wdt.feed()
 
     pycom.nvs_set('last_temp', now_temperature )
 #    old_temperature=now_temperature
 
-    if already_sent == 0:
+    if pycom.nvs_get('already_sent') == 0:
         # only end if not already red status
         if (intervals == 1.0) or (send_all_data == 1):
             if low_power_consumption_mode == 0:
