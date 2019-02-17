@@ -110,12 +110,12 @@ low_power_mode_indicator=color_white
 low_power_mode_indicator_ok=color_white
 low_power_mode_indicator_fail=color_red
 
-#for x in range(4):
+for x in range(4):
     # indicate power mode (blue=high power, orange=low power)
-#    time.sleep(0.1)
-#    pycom.rgbled(color_black)
-#    time.sleep(0.1)
-#    pycom.rgbled(low_power_mode_indicator)
+    time.sleep(0.1)
+    pycom.rgbled(color_black)
+    time.sleep(0.1)
+    pycom.rgbled(low_power_mode_indicator)
 
 if signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
     # test uplink/downlink - if successful, send green light, else red light
@@ -167,9 +167,9 @@ if signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
 # ################################################################
 # sigfox: change to uplink messages only
 sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False) # false=only uplink
-pycom.nvs_set('interval', 0)
-pycom.nvs_set('init_count', 0)
-pycom.nvs_set('last_temp', 0)
+pycom.nvs_set('init_count', 0)      # marker for first time loop execution
+pycom.nvs_set('interval', 0)        # waiting time intervall countdown
+pycom.nvs_set('last_temp', 0)       # save of last temperature (to detect anomaly)
 while True:
     countInterval()
     pycom.nvs_set('already_sent', 0)
@@ -208,12 +208,10 @@ while True:
             pycom.rgbled(color_black)
             pycom.nvs_set('interval', 0)
             pycom.nvs_set('already_sent', 1)
-            #this_interval=0
-            #already_sent=1
             wdt.feed()
-
+            
+    pycom.nvs_set('init_count', 1)
     pycom.nvs_set('last_temp', now_temperature )
-#    old_temperature=now_temperature
 
     if pycom.nvs_get('already_sent') == 0:
         # only end if not already red status
@@ -221,8 +219,6 @@ while True:
             console("sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
             pycom.rgbled(color_green)
             sigfox_network.send(bytes([protocol_version,now_temperature]))
-            #pybytes.send_virtual_pin_value(False,15,int(now_temperature))
-            #this_interval=0
             pycom.nvs_set('interval', 0)
             pycom.rgbled(color_black)
 
@@ -235,6 +231,3 @@ while True:
         sigfox_network.close()
         py.setup_sleep(measurement_interval)
         py.go_to_sleep()
-
-    #init_count = 1
-    pycom.nvs_set('init_count', 1)
