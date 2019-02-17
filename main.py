@@ -70,7 +70,7 @@ def countInterval():
 def console(message):
     if low_power_consumption_mode == 0:
         now = time.localtime()
-        print("%s-%02d-%02d %02d:%02d:%02d %s" % (now[0],now[1],now[2],now[3],now[4],now[5], message))
+        print("%s-%02d-%02d %02d:%02d:%02d [%s] %s" % (now[0],now[1],now[2],now[3],now[4],now[5], device_id, message))
 
 py = Pysense()
 
@@ -86,18 +86,19 @@ wdt.feed()
 
 battery_voltage=py.read_battery_voltage()
 
-if disable_low_power_on_usb == 1:
-    if battery_voltage > usb_power_voltage_indication:
-        low_power_consumption_mode=0
-        console("USB connection detected, disable low power mode (voltage=%s)" % (str(py.read_battery_voltage())))
-        wdt.feed()
-
 sigfox = Sigfox(mode=Sigfox.SIGFOX, rcz=Sigfox.RCZ1)
 sigfox_network = socket.socket(socket.AF_SIGFOX, socket.SOCK_RAW)
 sigfox_network.setblocking(True)
 sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, True) # true=downlink
 device_id = binascii.hexlify(sigfox.id())
 device_pac = binascii.hexlify(sigfox.pac())
+
+if disable_low_power_on_usb == 1:
+    if battery_voltage > usb_power_voltage_indication:
+        low_power_consumption_mode=0
+        console("USB connection detected, disable low power mode (voltage=%s)" % (str(py.read_battery_voltage())))
+        wdt.feed()
+
 console("DEVICE ID : %s" % (device_id))
 console("DEVICE PAC: %s" % (device_pac))
 wdt.feed()
@@ -112,9 +113,9 @@ low_power_mode_indicator_fail=color_red
 
 for x in range(4):
     # indicate power mode (blue=high power, orange=low power)
-    time.sleep(0.1)
+    time.sleep(0.2)
     pycom.rgbled(color_black)
-    time.sleep(0.1)
+    time.sleep(0.2)
     pycom.rgbled(low_power_mode_indicator)
 
 if signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
@@ -146,18 +147,18 @@ if signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
         console("ERROR: signal stregth below limit: %s < %s" % (str(signal_strength),str(rssi_dbm_limit)))
         while True:
             pycom.rgbled(low_power_mode_indicator_fail)
-            time.sleep(0.1)
+            time.sleep(0.2)
             pycom.rgbled(color_black)
-            time.sleep(0.1)
+            time.sleep(0.2)
     else:
         console("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
         pycom.nvs_set('signaltest_done', 1)
-        console("NVRAM set: signaltest_done = 1")
+        console("NVRAM set: signaltest_done = %s" % (pycom.nvs_get("signaltest_done")))
         for x in range(4):
             pycom.rgbled(low_power_mode_indicator_ok)
-            time.sleep(0.1)
+            time.sleep(0.2)
             pycom.rgbled(color_black)
-            time.sleep(0.1)
+            time.sleep(0.2)
     wdt.feed()
     pycom.rgbled(color_black)
 
@@ -209,7 +210,7 @@ while True:
             pycom.nvs_set('interval', 0)
             pycom.nvs_set('already_sent', 1)
             wdt.feed()
-            
+
     pycom.nvs_set('init_count', 1)
     pycom.nvs_set('last_temp', now_temperature )
 
