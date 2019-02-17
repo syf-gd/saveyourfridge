@@ -62,14 +62,23 @@ import gc
 import time
 
 def countInterval():
-    interval = pycom.nvs_get('interval')
+    interval = nvram_read('interval')
     interval += 1
-    pycom.nvs_set('interval', interval)
+    nvram_write('interval', interval)
 
 def console(message):
     if low_power_consumption_mode == 0:
         now = time.localtime()
         print("%s-%02d-%02d %02d:%02d:%02d [%s] %s" % (now[0],now[1],now[2],now[3],now[4],now[5], device_id, message))
+
+def nvram_read(key):
+    ret=pycom.nvs_get(key)
+    console("NVRAM read '%s'=%s" % (str(key), str(ret)))
+    return ret
+
+def nvram_write(key,value):
+    console("NVRAM write '%s'=%s" % (str(key), str(value)))
+    pycom.nvs_set(key, int(value))
 
 py = Pysense()
 
@@ -105,9 +114,9 @@ if disable_low_power_on_usb == 1:
 # WAKE_REASON_PUSH_BUTTON = 2   # Pytrack/Pysense reset buttom
 # WAKE_REASON_TIMER = 4         # Normal timeout of the sleep interval
 # WAKE_REASON_INT_PIN = 8       # INT pinmy_wake_up_reason=py.get_wake_reason()
-console("Wakeup reason: %s (last reason: %s)" % (str(my_wake_up_reason), str(pycom.nvs_get('saved_wu_status'))))
+console("Wakeup reason: %s (last saved reason: %s)" % (str(my_wake_up_reason), str(nvram_read('saved_wu_status'))))
 # lwus=last wake-up status
-pycom.nvs_set('saved_wu_status', int(my_wake_up_reason))
+nvram_write('saved_wu_status', int(my_wake_up_reason))
 
 
 console("DEVICE ID : %s" % (device_id))
@@ -164,8 +173,7 @@ if do_signal_test == 1 and my_wake_up_reason != 4:
             time.sleep(0.2)
     else:
         console("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
-        pycom.nvs_set('signaltest_done', 1)
-        console("NVRAM set: signaltest_done = %s" % (pycom.nvs_get("signaltest_done")))
+        nvram_write('signaltest_done', 1)
         for x in range(4):
             pycom.rgbled(low_power_mode_indicator_ok)
             time.sleep(0.2)
@@ -180,12 +188,12 @@ if do_signal_test == 1 and my_wake_up_reason != 4:
 # ################################################################
 # sigfox: change to uplink messages only
 sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False) # false=only uplink
-pycom.nvs_set('init_count', 0)      # marker for first time loop execution
-pycom.nvs_set('interval', 0)        # waiting time intervall countdown
-pycom.nvs_set('last_temp', 0)       # save of last temperature (to detect anomaly)
+nvram_write('init_count', 0)      # marker for first time loop execution
+nvram_write('interval', 0)        # waiting time intervall countdown
+nvram_write('last_temp', 0)       # save of last temperature (to detect anomaly)
 while True:
     countInterval()
-    pycom.nvs_set('already_sent', 0)
+    nvram_write('already_sent', 0)
 
     # round to floor
     console("measuring temperature...")
@@ -195,13 +203,13 @@ while True:
     if low_power_consumption_mode == 0:
         pycom.rgbled(color_black)
 
-    intervals = transmission_interval/(measurement_interval*pycom.nvs_get('interval'))
+    intervals = transmission_interval/(measurement_interval*nvram_read('interval'))
     console("interval countdown  : %s" % (str(intervals)))
     console("temperature (now)   : %s ((temp-80)/%s=%s)" % (now_temperature, temperature_compression_factor, original_temperature))
-    console("temperature (last)  : %s ((temp-80)/%s)"  % (pycom.nvs_get('last_temp'), temperature_compression_factor))
+    console("temperature (last)  : %s ((temp-80)/%s)"  % (nvram_read('last_temp'), temperature_compression_factor))
     console("temperature anomaly : %s (>=)" % (anomaly_detection_difference))
     wdt.feed()
-    if pycom.nvs_get('init_count') == 0:
+    if nvram_read('init_count') == 0:
         # first start => send message
             console("sending initial value after restart... (green:%s; v:%s)" % (now_temperature, protocol_version))
             if low_power_consumption_mode == 0:
@@ -211,28 +219,28 @@ while True:
             if low_power_consumption_mode == 0:
                 pycom.rgbled(color_black)
 
-    if pycom.nvs_get('init_count') == 1:
+    if nvram_read('init_count') == 1:
         # only if first measurement completed
-        if now_temperature >= (pycom.nvs_get('last_temp') + anomaly_detection_difference):
+        if now_temperature >= (nvram_read('last_temp') + anomaly_detection_difference):
             console("sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
 
             pycom.rgbled(color_red)
             sigfox_network.send(bytes([protocol_version,now_temperature]))
             pycom.rgbled(color_black)
-            pycom.nvs_set('interval', 0)
-            pycom.nvs_set('already_sent', 1)
+            nvram_write('interval', 0)
+            nvram_write('already_sent', 1)
             wdt.feed()
 
-    pycom.nvs_set('init_count', 1)
-    pycom.nvs_set('last_temp', now_temperature )
+    nvram_write('init_count', 1)
+    nvram_write('last_temp', now_temperature )
 
-    if pycom.nvs_get('already_sent') == 0:
+    if nvram_read('already_sent') == 0:
         # only end if not already red status
         if (intervals == 1.0) or (send_all_data == 1):
             console("sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
             pycom.rgbled(color_green)
             sigfox_network.send(bytes([protocol_version,now_temperature]))
-            pycom.nvs_set('interval', 0)
+            nvram_write('interval', 0)
             pycom.rgbled(color_black)
 
     wdt.feed()
