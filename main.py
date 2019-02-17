@@ -14,7 +14,7 @@
 # ########   Variables
 # ################################################################
 measurement_interval=300             # #=seconds a measurement will be done (300=>5 minutes)
-transmission_interval=3600           # #=seconds a message will be sent (independently of alarm) (3600=>15 minutes)
+transmission_interval=900           # #=seconds a message will be sent (independently of alarm) (900=>15 minutes)
 anomaly_detection_difference = 2     # #=differences in degrees(celsius) to send alarm by device
 low_power_consumption_mode = 1       # 1=send device to deep sleep mode (attention: system is not connectable anymore)
 send_all_data = 0                    # 1=send every measurement
@@ -130,6 +130,7 @@ if signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
 
         error_position="rssi"
         signal_strength=sigfox.rssi()
+        print("Signal Strength received:" + str(signal_strength))
         wdt.feed()
 
     except:
@@ -186,9 +187,10 @@ while True:
     original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
     now_temperature = int(original_temperature*2+80)
     if low_power_consumption_mode == 0:
-        pycom.rgbled(0x000000)
+        pycom.rgbled(color_black)
 
     intervals = transmission_interval/(measurement_interval*pycom.nvs_get('interval'))
+    print("Interval: " + str(intervals))
     if low_power_consumption_mode == 0:
         print("temperature (this)  [%s]: %s ((temp-80)/2=%s)" % (device_id, now_temperature, original_temperature))
         print("temperature (old)   [%s]: %s ((temp-80)/2)"  % (device_id, pycom.nvs_get('last_temp')))
@@ -228,7 +230,7 @@ while True:
         if (intervals == 1.0) or (send_all_data == 1):
             if low_power_consumption_mode == 0:
                 print("sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
-            pycom.rgbled(0x007f00)
+            pycom.rgbled(color_green)
             sigfox_network.send(bytes([protocol_version,now_temperature]))
             #pybytes.send_virtual_pin_value(False,15,int(now_temperature))
             #this_interval=0
@@ -239,10 +241,9 @@ while True:
     if low_power_consumption_mode == 0:
         time.sleep(measurement_interval)
     else:
+        sigfox_network.close()
         py.setup_sleep(measurement_interval)
         py.go_to_sleep()
 
     #init_count = 1
     pycom.nvs_set('init_count', 1)
-
-sigfox_network.close()
