@@ -20,7 +20,7 @@ anomaly_detection_difference=4      # #[2]=differences in degrees(celsius) to se
 low_power_consumption_mode=1        # 0/[1]=send device to deep sleep mode (attention: system is not connectable anymore)
 send_all_data=0                     # [0]/1=send every measurement
 fast_boot=0                         # [0]/1=no operational feedback at boot - ATTENTION: "0" is the only way to re-deploy code to the board without flashing the firmware!
-signal_test=1                       # 0/[1]=do signal strength test at boot
+do_signal_test=1                    # 0/[1]=do signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
 rssi_dbm_limit=-135                 # #[135]=limit of rssi strength (-135...-122)
 disable_low_power_on_usb=1          # 0/[1]=disable low power mode if usb connection is detected
@@ -61,7 +61,6 @@ from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
 import gc
 import time
 
-
 def countInterval():
     interval = pycom.nvs_get('interval')
     interval += 1
@@ -73,6 +72,7 @@ def console(message):
         print("%s-%02d-%02d %02d:%02d:%02d [%s] %s" % (now[0],now[1],now[2],now[3],now[4],now[5], device_id, message))
 
 py = Pysense()
+
 
 # ################################################################
 # ########   main
@@ -93,11 +93,19 @@ sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, True) # true=downlink
 device_id = binascii.hexlify(sigfox.id())
 device_pac = binascii.hexlify(sigfox.pac())
 
+
 if disable_low_power_on_usb == 1:
     if battery_voltage > usb_power_voltage_indication:
         low_power_consumption_mode=0
         console("USB connection detected, disable low power mode (voltage=%s)" % (str(py.read_battery_voltage())))
         wdt.feed()
+
+# WAKE_REASON_POWERON = 0       # Accelerometer activity/inactivity detection
+# WAKE_REASON_ACCELEROMETER = 1 # Accelerometer activity/inactivity detection
+# WAKE_REASON_PUSH_BUTTON = 2   # Pytrack/Pysense reset buttom
+# WAKE_REASON_TIMER = 4         # Normal timeout of the sleep interval
+# WAKE_REASON_INT_PIN = 8       # INT pinmy_wake_up_reason=py.get_wake_reason()
+console("Wakeup reason: %s" % (str(my_wake_up_reason)))
 
 console("DEVICE ID : %s" % (device_id))
 console("DEVICE PAC: %s" % (device_pac))
@@ -111,14 +119,15 @@ low_power_mode_indicator=color_white
 low_power_mode_indicator_ok=color_white
 low_power_mode_indicator_fail=color_red
 
-for x in range(4):
-    # indicate power mode (blue=high power, orange=low power)
-    time.sleep(0.2)
-    pycom.rgbled(color_black)
-    time.sleep(0.2)
-    pycom.rgbled(low_power_mode_indicator)
+#if do_signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
+if do_signal_test == 1 and my_wake_up_reason != 4:
+    for x in range(4):
+        # indicate power mode (blue=high power, orange=low power)
+        time.sleep(0.2)
+        pycom.rgbled(color_black)
+        time.sleep(0.2)
+        pycom.rgbled(low_power_mode_indicator)
 
-if signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
     # test uplink/downlink - if successful, send green light, else red light
     signal_strength=-500        # default value
     console("send strength test message")
@@ -184,10 +193,10 @@ while True:
         pycom.rgbled(color_black)
 
     intervals = transmission_interval/(measurement_interval*pycom.nvs_get('interval'))
-    console("interval countdown      : %s" % (str(intervals)))
-    console("temperature (now)   [%s]: %s ((temp-80)/%s=%s)" % (device_id, now_temperature, temperature_compression_factor, original_temperature))
-    console("temperature (last)  [%s]: %s ((temp-80)/%s)"  % (device_id, pycom.nvs_get('last_temp'), temperature_compression_factor))
-    console("temperature anomaly [%s]: %s (>=)" % (device_id, anomaly_detection_difference))
+    console("interval countdown  : %s" % (str(intervals)))
+    console("temperature (now)   : %s ((temp-80)/%s=%s)" % (now_temperature, temperature_compression_factor, original_temperature))
+    console("temperature (last)  : %s ((temp-80)/%s)"  % (pycom.nvs_get('last_temp'), temperature_compression_factor))
+    console("temperature anomaly : %s (>=)" % (anomaly_detection_difference))
     wdt.feed()
     if pycom.nvs_get('init_count') == 0:
         # first start => send message
