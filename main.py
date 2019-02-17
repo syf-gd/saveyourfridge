@@ -92,7 +92,7 @@ sigfox_network.setblocking(True)
 sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, True) # true=downlink
 device_id = binascii.hexlify(sigfox.id())
 device_pac = binascii.hexlify(sigfox.pac())
-
+my_wake_up_reason=py.get_wake_reason()
 
 if disable_low_power_on_usb == 1:
     if battery_voltage > usb_power_voltage_indication:
@@ -105,7 +105,10 @@ if disable_low_power_on_usb == 1:
 # WAKE_REASON_PUSH_BUTTON = 2   # Pytrack/Pysense reset buttom
 # WAKE_REASON_TIMER = 4         # Normal timeout of the sleep interval
 # WAKE_REASON_INT_PIN = 8       # INT pinmy_wake_up_reason=py.get_wake_reason()
-console("Wakeup reason: %s" % (str(my_wake_up_reason)))
+console("Wakeup reason: %s (last reason: %s)" % (str(my_wake_up_reason), str(pycom.nvs_get('saved_wu_status'))))
+# lwus=last wake-up status
+pycom.nvs_set('saved_wu_status', int(my_wake_up_reason))
+
 
 console("DEVICE ID : %s" % (device_id))
 console("DEVICE PAC: %s" % (device_pac))
