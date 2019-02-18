@@ -122,9 +122,14 @@ wake_up_reason=py.get_wake_reason()
 
 if disable_low_power_on_usb == 1:
     if battery_voltage > usb_power_voltage_indication:
-        low_power_consumption_mode=0
+        low_power_consumption_mode=0        
         console("USB connection detected, disable low power mode (voltage=%s)" % (str(py.read_battery_voltage())))
         wdt.feed()
+
+if low_power_consumption_mode == 0:
+    led_duration = 0
+else
+    led_duration = 0.2
 
 # WAKE_REASON_POWERON = 0       # Accelerometer activity/inactivity detection
 # WAKE_REASON_ACCELEROMETER = 1 # Accelerometer activity/inactivity detection
@@ -147,7 +152,7 @@ wdt.feed()
 if do_signal_test == 1 and wake_up_reason != 4:
     # do signal test only if booted up and option is set
     for x in range(2):
-        led_blink(color_white, 0.2)
+        led_blink(color_white, led_duration)
 
     # test uplink/downlink - if successful, send green light, else red light
     signal_strength=-500        # default value
@@ -180,7 +185,7 @@ if do_signal_test == 1 and wake_up_reason != 4:
         console("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
         nvram_write('signaltest_done', 1)
     wdt.feed()
-    pycom.rgbled(color_black)
+    led_blink(color_black,led_duration)
 
 
 # ################################################################
@@ -195,11 +200,11 @@ if wake_up_reason != 4:
 
 while True:
     # round to floor
-    led_blink(color_blue, 0.2)
+    led_blink(color_blue, led_duration)
     console("measuring temperature...")
     original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
     now_temperature = int(original_temperature*temperature_compression_factor+80)
-    led_blink(color_black,0)
+    led_blink(color_black, led_duration)
 
     # interval logic: every time the counter iszero (0), a message is sent
     # counter will be counted up from zero to "interval_max"
@@ -219,29 +224,17 @@ while True:
         # first start => send message
         # necessary to prevent alarm messages because of large gal in temperature and saved temperature
             console("sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
-            if low_power_consumption_mode == 0:
-                led_blink(color_green, 0)
-            else:
-                # short blink
-                led_blink(color_green, 0.2)
-
+            led_blink(color_green, led_duration)
             send_sigfox_message(bytes([protocol_version,now_temperature]))
             wdt.feed()
-            if low_power_consumption_mode == 0:
-                led_blink(color_black, 0)
+            led_blink(color_black, led_duration)
     else:
         # only if first measurement completed
         if now_temperature >= (nvram_read('last_temp') + anomaly_detection_difference):
             console("sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
-
-            if low_power_consumption_mode == 0:
-                led_blink(color_red, 0)
-            else:
-                # short blink
-                led_blink(color_red, 0.2)
-
+            led_blink(color_red, led_duration)
             send_sigfox_message(bytes([protocol_version,now_temperature]))
-            led_blink(color_black, 0)
+            led_blink(color_black, led_duration)
             wdt.feed()
 
     countInterval()
