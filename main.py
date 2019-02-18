@@ -66,6 +66,11 @@ def countInterval():
     interval += 1
     nvram_write('interval', interval)
 
+def countMessages():
+    cmessages = int(nvram_read('c_last_messages'))
+    cmessages += 1
+    nvram_write('c_last_messages', cmessages)
+
 def console(message):
     if low_power_consumption_mode == 0:
         now = time.localtime()
@@ -104,6 +109,7 @@ def led_signal_error():
 def send_sigfox_message(message):
     try:
         sigfox_network.send(message)
+        countMessages()
     except:
         led_signal_error
 
@@ -146,13 +152,14 @@ else:
 # WAKE_REASON_PUSH_BUTTON = 2   # Pytrack/Pysense reset buttom
 # WAKE_REASON_TIMER = 4         # Normal timeout of the sleep interval
 # WAKE_REASON_INT_PIN = 8       # INT pinmy_wake_up_reason=py.get_wake_reason()
-console("Wakeup reason: %s (last saved reason: %s)" % (str(wake_up_reason), str(nvram_read('saved_wu_status'))))
+console("Wakeup reason               : %s (last saved reason: %s)" % (str(wake_up_reason), str(nvram_read('saved_wu_status'))))
 # lwus=last wake-up status
 nvram_write('saved_wu_status', int(wake_up_reason))
 
 
-console("DEVICE ID : %s" % (device_id))
-console("DEVICE PAC: %s" % (device_pac))
+console("DEVICE ID                   : %s" % (device_id))
+console("DEVICE PAC                  : %s" % (device_pac))
+console("Messages sent last operation: %s" % (nvram_read("c_last_messages")))
 wdt.feed()
 
 # ################################################################
@@ -165,7 +172,7 @@ if do_signal_test == 1 and wake_up_reason != 4:
 
     # test uplink/downlink - if successful, send green light, else red light
     signal_strength=-500        # default value
-    console("send strength test message")
+    console("Strength test message sent...")
     try:
         error_position="send"
         sigfox_network.send(bytes([255,255,0]))
@@ -178,20 +185,19 @@ if do_signal_test == 1 and wake_up_reason != 4:
 
         error_position="rssi"
         signal_strength=sigfox.rssi()
-        console("Signal Strength received:" + str(signal_strength))
+        console("Signal strength received: %sdBm" % (str(signal_strength)))
         wdt.feed()
 
     except:
         # every error will stop strength test
         signal_strength=-500
-        console("error while waiting for signal strength test (position=%s)" % (error_position))
+        console("ERROR - test for signal strength failed (position=%s)" % (error_position))
 
-    console("received signal stregth: %s" % (str(signal_strength)))
     if signal_strength < rssi_dbm_limit:
         console("ERROR: signal stregth below limit: %s < %s" % (str(signal_strength),str(rssi_dbm_limit)))
         led_signal_error()
     else:
-        console("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
+        console("Signal stregth valid : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
         nvram_write('signaltest_done', 1)
     wdt.feed()
     led_blink(color_black,led_duration)
@@ -222,21 +228,21 @@ while True:
         
     # round to floor
     led_blink(color_blue, led_duration)
-    console("measuring temperature...")
+    console("Measuring temperature...")
     original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
     now_temperature = int(original_temperature*temperature_compression_factor+temperature_correction_factor)
     led_blink(color_black, led_duration)
 
-    console("interval countdown  : %s < %s" % (str(nvram_read('interval')),str(interval_max)))
-    console("temperature (now)   : %s ((temp-%s)/%s=%s)" % (now_temperature, temperature_correction_factor, temperature_compression_factor, original_temperature))
-    console("temperature (last)  : %s ((temp-%s)/%s)"  % (nvram_read('last_temp'), temperature_correction_factor, temperature_compression_factor))
-    console("temperature anomaly : %s (>=)" % (anomaly_detection_difference))
+    console("Interval countdown  : %s < %s" % (str(nvram_read('interval')),str(interval_max)))
+    console("Temperature (now)   : %s ((temp-%s)/%s=%s)" % (now_temperature, temperature_correction_factor, temperature_compression_factor, original_temperature))
+    console("Temperature (last)  : %s ((temp-%s)/%s)"  % (nvram_read('last_temp'), temperature_correction_factor, temperature_compression_factor))
+    console("Temperature anomaly : %s (>=)" % (anomaly_detection_difference))
     wdt.feed()
 
     if nvram_read('first_run') != 1:
         if now_temperature >= (nvram_read('last_temp') + anomaly_detection_difference):
             # sending alarm if anomaly detected
-            console("===> sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
+            console("=====> Sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
             led_blink(color_red, led_duration)
             send_sigfox_message(bytes([protocol_version,now_temperature]))
             led_blink(color_black, led_duration)
@@ -245,7 +251,7 @@ while True:
 
     # sending first run and normal if counter reaches limit
     if nvram_read('interval') == 0:
-            console("===> sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
+            console("=====> Sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
             led_blink(color_green, led_duration)
             send_sigfox_message(bytes([protocol_version,now_temperature]))
             wdt.feed()
@@ -258,11 +264,11 @@ while True:
 
     wdt.feed()
     if low_power_consumption_mode == 0:
-        console("going to sleep (%s seconds)" %(measurement_interval))
+        console("Going to sleep (%s seconds)" %(measurement_interval))
         sigfox_network.close()
         time.sleep(measurement_interval)
     else:
-        console("going to deep sleep (%s seconds)" %(measurement_interval))
+        console("Going to deep sleep (%s seconds)" %(measurement_interval))
         sigfox_network.close()
         py.setup_sleep(measurement_interval)
         py.go_to_sleep()
