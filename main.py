@@ -62,7 +62,7 @@ import gc
 import time
 
 def countInterval():
-    interval = nvram_read('interval')
+    interval = int(nvram_read('interval'))
     interval += 1
     nvram_write('interval', interval)
 
@@ -236,7 +236,7 @@ while True:
     if nvram_read('first_run') != 1:
         if now_temperature >= (nvram_read('last_temp') + anomaly_detection_difference):
             # sending alarm if anomaly detected
-            console("sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
+            console("===> sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
             led_blink(color_red, led_duration)
             send_sigfox_message(bytes([protocol_version,now_temperature]))
             led_blink(color_black, led_duration)
@@ -245,7 +245,7 @@ while True:
 
     # sending first run and normal if counter reaches limit
     if nvram_read('interval') == 0:
-            console("sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
+            console("===> sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
             led_blink(color_green, led_duration)
             send_sigfox_message(bytes([protocol_version,now_temperature]))
             wdt.feed()
