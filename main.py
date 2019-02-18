@@ -18,8 +18,7 @@ transmission_interval=900           # #[900]=seconds a message will be sent (ind
 temperature_compression_factor=2    # #[2]=factor of temperature compression 
 anomaly_detection_difference=4      # #[2]=differences in degrees(celsius) to send alarm by device
 low_power_consumption_mode=1        # 0/[1]=send device to deep sleep mode (attention: system is not connectable anymore)
-send_all_data=0                     # [0]/1=send every measurement
-fast_boot=0                         # [0]/1=no operational feedback at boot - ATTENTION: "0" is the only way to re-deploy code to the board without flashing the firmware!
+send_data_everytime=0               # [0]/1=send every measurement
 do_signal_test=1                    # 0/[1]=do signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
 rssi_dbm_limit=-135                 # #[135]=limit of rssi strength (-135...-122)
@@ -43,7 +42,7 @@ color_orange=0xea3602
 color_red=0x7f0000
 color_green=0x007f00
 color_black=0x000000
-color_white=0x444444
+color_white=0x222222
 
 # ################################################################
 # ########   imports
@@ -80,6 +79,24 @@ def nvram_write(key,value):
     console("NVRAM write '%s'=%s" % (str(key), str(value)))
     pycom.nvs_set(key, int(value))
 
+def led_blink(color,duration):
+    # if duration = 0, permanent on
+        pycom.rgbled(color)
+        if duration > 0:
+            time.sleep(duration)
+            pycom.rgbled(color_black)
+
+def led_signal_error():
+    while True:
+        led_blink(color_red, 0.2)
+        time.sleep(0.2)
+
+def send_sigfox_message(message):
+    try:
+        sigfox_network.send(message)
+    except:
+        led_signal_error
+
 py = Pysense()
 
 
@@ -101,7 +118,7 @@ sigfox_network.setblocking(True)
 sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, True) # true=downlink
 device_id = binascii.hexlify(sigfox.id())
 device_pac = binascii.hexlify(sigfox.pac())
-my_wake_up_reason=py.get_wake_reason()
+wake_up_reason=py.get_wake_reason()
 
 if disable_low_power_on_usb == 1:
     if battery_voltage > usb_power_voltage_indication:
@@ -114,9 +131,9 @@ if disable_low_power_on_usb == 1:
 # WAKE_REASON_PUSH_BUTTON = 2   # Pytrack/Pysense reset buttom
 # WAKE_REASON_TIMER = 4         # Normal timeout of the sleep interval
 # WAKE_REASON_INT_PIN = 8       # INT pinmy_wake_up_reason=py.get_wake_reason()
-console("Wakeup reason: %s (last saved reason: %s)" % (str(my_wake_up_reason), str(nvram_read('saved_wu_status'))))
+console("Wakeup reason: %s (last saved reason: %s)" % (str(wake_up_reason), str(nvram_read('saved_wu_status'))))
 # lwus=last wake-up status
-nvram_write('saved_wu_status', int(my_wake_up_reason))
+nvram_write('saved_wu_status', int(wake_up_reason))
 
 
 console("DEVICE ID : %s" % (device_id))
@@ -124,21 +141,14 @@ console("DEVICE PAC: %s" % (device_pac))
 wdt.feed()
 
 # ################################################################
-# ########   pre-check
+# ########   pre-check: signal strength
 # ################################################################
 
-low_power_mode_indicator=color_white
-low_power_mode_indicator_ok=color_white
-low_power_mode_indicator_fail=color_red
-
 #if do_signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
-if do_signal_test == 1 and my_wake_up_reason != 4:
-    for x in range(4):
+if do_signal_test == 1 and wake_up_reason != 4:
+    for x in range(2):
         # indicate power mode (blue=high power, orange=low power)
-        time.sleep(0.2)
-        pycom.rgbled(color_black)
-        time.sleep(0.2)
-        pycom.rgbled(low_power_mode_indicator)
+        led_blink(color_white, 0.2)
 
     # test uplink/downlink - if successful, send green light, else red light
     signal_strength=-500        # default value
@@ -166,19 +176,10 @@ if do_signal_test == 1 and my_wake_up_reason != 4:
     console("received signal stregth: %s" % (str(signal_strength)))
     if signal_strength < rssi_dbm_limit:
         console("ERROR: signal stregth below limit: %s < %s" % (str(signal_strength),str(rssi_dbm_limit)))
-        while True:
-            pycom.rgbled(low_power_mode_indicator_fail)
-            time.sleep(0.2)
-            pycom.rgbled(color_black)
-            time.sleep(0.2)
+        led_signal_error()
     else:
         console("signal stregth okay : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
         nvram_write('signaltest_done', 1)
-        for x in range(4):
-            pycom.rgbled(low_power_mode_indicator_ok)
-            time.sleep(0.2)
-            pycom.rgbled(color_black)
-            time.sleep(0.2)
     wdt.feed()
     pycom.rgbled(color_black)
 
@@ -188,60 +189,65 @@ if do_signal_test == 1 and my_wake_up_reason != 4:
 # ################################################################
 # sigfox: change to uplink messages only
 sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False) # false=only uplink
-nvram_write('init_count', 0)      # marker for first time loop execution
-nvram_write('interval', 0)        # waiting time intervall countdown
-nvram_write('last_temp', 0)       # save of last temperature (to detect anomaly)
-while True:
-    countInterval()
-    nvram_write('already_sent', 0)
+if wake_up_reason != 4:
+    # reset vars if re-powered by USB/battery (not by deep sleep)
+    nvram_write('interval', 0)        # waiting time interval countdown
+    nvram_write('last_temp', 0)       # save of last temperature (to detect anomaly)
 
+while True:
     # round to floor
+    led_blink(color_blue, 0.2)
     console("measuring temperature...")
     pycom.rgbled(color_blue)
     original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
     now_temperature = int(original_temperature*temperature_compression_factor+80)
-    if low_power_consumption_mode == 0:
-        pycom.rgbled(color_black)
+    led_blink(color_black,0)
 
-    intervals = transmission_interval/(measurement_interval*nvram_read('interval'))
-    console("interval countdown  : %s" % (str(intervals)))
+    # interval logic: every time the counter iszero (0), a message is sent
+    # counter will be counted up from zero to "interval_max"
+    # counter is resetted if it reaches interval_max (equal or beyond)
+    # benefit: after a restart, the initial message is sent
+    interval_max = transmission_interval/measurement_interval
+    if nvram_read('interval') > interval_max:
+            nvram_write('interval', 0)
+        
+    console("interval countdown  : %s < %s" % (str(nvram_read('interval')),str(interval_max)))
     console("temperature (now)   : %s ((temp-80)/%s=%s)" % (now_temperature, temperature_compression_factor, original_temperature))
     console("temperature (last)  : %s ((temp-80)/%s)"  % (nvram_read('last_temp'), temperature_compression_factor))
     console("temperature anomaly : %s (>=)" % (anomaly_detection_difference))
     wdt.feed()
-    if nvram_read('init_count') == 0:
+
+    if nvram_read('interval') == 0 or (send_data_everytime == 1):
         # first start => send message
-            console("sending initial value after restart... (green:%s; v:%s)" % (now_temperature, protocol_version))
+            console("sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
             if low_power_consumption_mode == 0:
-                pycom.rgbled(color_green)
-            sigfox_network.send(bytes([protocol_version,now_temperature]))
+                led_blink(color_green, 0)
+            else:
+                # short blink
+                led_blink(color_green, 0.2)
+
+            send_sigfox_message(bytes([protocol_version,now_temperature]))
             wdt.feed()
             if low_power_consumption_mode == 0:
-                pycom.rgbled(color_black)
-
-    if nvram_read('init_count') == 1:
+                led_blink(color_black, 0)
+    else:
         # only if first measurement completed
         if now_temperature >= (nvram_read('last_temp') + anomaly_detection_difference):
             console("sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
 
-            pycom.rgbled(color_red)
-            sigfox_network.send(bytes([protocol_version,now_temperature]))
-            pycom.rgbled(color_black)
-            nvram_write('interval', 0)
-            nvram_write('already_sent', 1)
+            if low_power_consumption_mode == 0:
+                led_blink(color_red, 0)
+            else:
+                # short blink
+                led_blink(color_red, 0.2)
+
+            send_sigfox_message(bytes([protocol_version,now_temperature]))
+            led_blink(color_black, 0)
             wdt.feed()
 
-    nvram_write('init_count', 1)
-    nvram_write('last_temp', now_temperature )
+    countInterval()
 
-    if nvram_read('already_sent') == 0:
-        # only end if not already red status
-        if (intervals == 1.0) or (send_all_data == 1):
-            console("sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
-            pycom.rgbled(color_green)
-            sigfox_network.send(bytes([protocol_version,now_temperature]))
-            nvram_write('interval', 0)
-            pycom.rgbled(color_black)
+    nvram_write('last_temp', now_temperature )
 
     wdt.feed()
     if low_power_consumption_mode == 0:
