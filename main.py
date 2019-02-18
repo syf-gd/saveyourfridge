@@ -20,7 +20,7 @@ temperature_correction_factor=80    # #[80]=temperature correction factor
 anomaly_detection_difference=4      # #[2]=differences in degrees(celsius) to send alarm by device
 low_power_consumption_mode=1        # 0/[1]=send device to deep sleep mode (attention: system is not connectable anymore)
 send_data_every_interval=0          # [0]/1=send every measurement
-do_signal_test=0                    # 0/[1]=do signal strength test at boot
+do_signal_test=1                    # 0/[1]=do signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
 rssi_dbm_limit=-135                 # #[135]=limit of rssi strength (-135...-122)
 disable_low_power_on_usb=1          # 0/[1]=disable low power mode if usb connection is detected
