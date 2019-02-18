@@ -144,10 +144,9 @@ wdt.feed()
 # ########   pre-check: signal strength
 # ################################################################
 
-#if do_signal_test == 1 and pycom.nvs_get('signaltest_done') is None:
 if do_signal_test == 1 and wake_up_reason != 4:
+    # do signal test only if booted up and option is set
     for x in range(2):
-        # indicate power mode (blue=high power, orange=low power)
         led_blink(color_white, 0.2)
 
     # test uplink/downlink - if successful, send green light, else red light
@@ -198,7 +197,6 @@ while True:
     # round to floor
     led_blink(color_blue, 0.2)
     console("measuring temperature...")
-    pycom.rgbled(color_blue)
     original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
     now_temperature = int(original_temperature*temperature_compression_factor+80)
     led_blink(color_black,0)
@@ -219,6 +217,7 @@ while True:
 
     if nvram_read('interval') == 0 or (send_data_everytime == 1):
         # first start => send message
+        # necessary to prevent alarm messages because of large gal in temperature and saved temperature
             console("sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
             if low_power_consumption_mode == 0:
                 led_blink(color_green, 0)
