@@ -128,7 +128,7 @@ if disable_low_power_on_usb == 1:
 
 if low_power_consumption_mode == 0:
     led_duration = 0
-else
+else:
     led_duration = 0.2
 
 # WAKE_REASON_POWERON = 0       # Accelerometer activity/inactivity detection
