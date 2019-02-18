@@ -220,7 +220,7 @@ while True:
     # counter is resetted if it reaches interval_max (equal or beyond)
     # benefit: after a restart, the initial message is sent
     interval_max = transmission_interval/measurement_interval
-    if nvram_read('interval') > interval_max:
+    if nvram_read('interval') >= interval_max:
         nvram_write('interval', 0)
     if send_data_every_interval == 1:
             # if data should be sent every time, the var 'interval' have to be reset
