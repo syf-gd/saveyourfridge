@@ -16,10 +16,11 @@
 measurement_interval=300            # #[30]=seconds a measurement will be done (300=>5 minutes)
 transmission_interval=900           # #[900]=seconds a message will be sent (independently of alarm) (900=>15 minutes)
 temperature_compression_factor=2    # #[2]=factor of temperature compression 
+temperature_correction_factor=80    # #[80]=temperature correction factor
 anomaly_detection_difference=4      # #[2]=differences in degrees(celsius) to send alarm by device
 low_power_consumption_mode=1        # 0/[1]=send device to deep sleep mode (attention: system is not connectable anymore)
-send_data_everytime=0               # [0]/1=send every measurement
-do_signal_test=1                    # 0/[1]=do signal strength test at boot
+send_data_every_interval=0          # [0]/1=send every measurement
+do_signal_test=0                    # 0/[1]=do signal strength test at boot
 protocol_version=1                  # #=1-254 (change, if data format changed)
 rssi_dbm_limit=-135                 # #[135]=limit of rssi strength (-135...-122)
 disable_low_power_on_usb=1          # 0/[1]=disable low power mode if usb connection is detected
@@ -79,17 +80,26 @@ def nvram_write(key,value):
     console("NVRAM write '%s'=%s" % (str(key), str(value)))
     pycom.nvs_set(key, int(value))
 
-def led_blink(color,duration):
-    # if duration = 0, permanent on
-        pycom.rgbled(color)
-        if duration > 0:
+def led_blink(color,duration,loop=1):
+    # loop=0 infinite
+    if loop > 0:
+        for x in range(loop):
+            # if duration = 0, permanent on
+            console("LED on: %s, %s, %s" % (str(color), str(duration), str(loop)))
+            pycom.rgbled(color)
+            if duration > 0:
+                time.sleep(duration)
+                pycom.rgbled(color_black)
+    else:
+        while True:
+            console("LED on: %s, %s, %s" % (str(color), str(duration), str(loop)))
+            pycom.rgbled(color)
             time.sleep(duration)
             pycom.rgbled(color_black)
+            time.sleep(duration)
 
 def led_signal_error():
-    while True:
-        led_blink(color_red, 0.2)
-        time.sleep(0.2)
+    led_blink(color_red, 0.2, 0)
 
 def send_sigfox_message(message):
     try:
@@ -151,8 +161,7 @@ wdt.feed()
 
 if do_signal_test == 1 and wake_up_reason != 4:
     # do signal test only if booted up and option is set
-    for x in range(2):
-        led_blink(color_white, led_duration)
+    led_blink(color_white, led_duration, 3)
 
     # test uplink/downlink - if successful, send green light, else red light
     signal_strength=-500        # default value
@@ -197,53 +206,60 @@ if wake_up_reason != 4:
     # reset vars if re-powered by USB/battery (not by deep sleep)
     nvram_write('interval', 0)        # waiting time interval countdown
     nvram_write('last_temp', 0)       # save of last temperature (to detect anomaly)
+    nvram_write('first_run', 1)       # save of first run status (1=first run;0=second+ run)
 
 while True:
-    # round to floor
-    led_blink(color_blue, led_duration)
-    console("measuring temperature...")
-    original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
-    now_temperature = int(original_temperature*temperature_compression_factor+80)
-    led_blink(color_black, led_duration)
-
     # interval logic: every time the counter iszero (0), a message is sent
     # counter will be counted up from zero to "interval_max"
     # counter is resetted if it reaches interval_max (equal or beyond)
     # benefit: after a restart, the initial message is sent
     interval_max = transmission_interval/measurement_interval
     if nvram_read('interval') > interval_max:
-            nvram_write('interval', 0)
+        nvram_write('interval', 0)
+    if send_data_every_interval == 1:
+            # if data should be sent every time, the var 'interval' have to be reset
+        nvram_write('interval', 0)
         
+    # round to floor
+    led_blink(color_blue, led_duration)
+    console("measuring temperature...")
+    original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
+    now_temperature = int(original_temperature*temperature_compression_factor+temperature_correction_factor)
+    led_blink(color_black, led_duration)
+
     console("interval countdown  : %s < %s" % (str(nvram_read('interval')),str(interval_max)))
-    console("temperature (now)   : %s ((temp-80)/%s=%s)" % (now_temperature, temperature_compression_factor, original_temperature))
-    console("temperature (last)  : %s ((temp-80)/%s)"  % (nvram_read('last_temp'), temperature_compression_factor))
+    console("temperature (now)   : %s ((temp-%s)/%s=%s)" % (now_temperature, temperature_correction_factor, temperature_compression_factor, original_temperature))
+    console("temperature (last)  : %s ((temp-%s)/%s)"  % (nvram_read('last_temp'), temperature_correction_factor, temperature_compression_factor))
     console("temperature anomaly : %s (>=)" % (anomaly_detection_difference))
     wdt.feed()
 
-    if nvram_read('interval') == 0 or (send_data_everytime == 1):
-        # first start => send message
-        # necessary to prevent alarm messages because of large gal in temperature and saved temperature
+    if nvram_read('first_run') != 1:
+        if now_temperature >= (nvram_read('last_temp') + anomaly_detection_difference):
+            # sending alarm if anomaly detected
+            console("sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
+            led_blink(color_red, led_duration)
+            send_sigfox_message(bytes([protocol_version,now_temperature]))
+            led_blink(color_black, led_duration)
+            nvram_write('interval',999) # set interval to limit, so next loop the cycle is starting over
+            wdt.feed()
+
+    # sending first run and normal if counter reaches limit
+    if nvram_read('interval') == 0:
             console("sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
             led_blink(color_green, led_duration)
             send_sigfox_message(bytes([protocol_version,now_temperature]))
             wdt.feed()
             led_blink(color_black, led_duration)
-    else:
-        # only if first measurement completed
-        if now_temperature >= (nvram_read('last_temp') + anomaly_detection_difference):
-            console("sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
-            led_blink(color_red, led_duration)
-            send_sigfox_message(bytes([protocol_version,now_temperature]))
-            led_blink(color_black, led_duration)
-            wdt.feed()
 
     countInterval()
 
     nvram_write('last_temp', now_temperature )
+    nvram_write('first_run', 0)
 
     wdt.feed()
     if low_power_consumption_mode == 0:
         console("going to sleep (%s seconds)" %(measurement_interval))
+        sigfox_network.close()
         time.sleep(measurement_interval)
     else:
         console("going to deep sleep (%s seconds)" %(measurement_interval))
