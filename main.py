@@ -160,14 +160,17 @@ console("Wakeup reason               : %s (last saved reason: %s)" % (str(wake_u
 nvram_write('saved_wu_status', int(wake_up_reason))
 
 # https://docs.micropython.org/en/latest/library/machine.WDT.html
-# PWRON_RESET=0
+# PWRON_RESET=0         battery change, reset button (short)
 # HARD_RESET=1
-# WDT_RESET=2
+# WDT_RESET=2           watchdog, code upload
 # DEEPSLEEP_RESET=3
 # SOFT_RESET=4
 console("Reset reason                : %s (last saved reason: %s)" % (str(reset_reason),str(nvram_read('saved_r_status'))))
 nvram_write('saved_r_status', int(reset_reason))
 
+if nvram_read('no_signaltest') == 1:
+    do_signal_test = 0
+console("Do signal test              : %s" % (do_signal_test))
 
 console("DEVICE ID                   : %s" % (device_id))
 console("DEVICE PAC                  : %s" % (device_pac))
@@ -207,6 +210,15 @@ if do_signal_test == 1 and wake_up_reason != 4:
 
     if signal_strength < rssi_dbm_limit:
         console("ERROR: signal stregth below limit: %s < %s" % (str(signal_strength),str(rssi_dbm_limit)))
+        nvram_write('no_signaltest', 1)
+        for x in range(20):
+            # if duration = 0, permanent on
+            pycom.rgbled(color_orange)
+            time.sleep(0.2)
+            pycom.rgbled(color_black)
+            time.sleep(0.2)
+
+        nvram_write('no_signaltest', 0)
         led_signal_error()
     else:
         console("Signal stregth valid : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
@@ -214,6 +226,8 @@ if do_signal_test == 1 and wake_up_reason != 4:
     wdt.feed()
     led_blink(color_black,led_duration)
 
+# reset savestate for signal test overruling
+nvram_write('no_signaltest', 0)
 
 # ################################################################
 # ########   measurement loop
@@ -228,6 +242,7 @@ if wake_up_reason != 4:
     nvram_write('interval', 0)        # waiting time interval countdown
     nvram_write('last_temp', 0)       # save of last temperature (to detect anomaly)
     nvram_write('first_run', 1)       # save of first run status (1=first run;0=second+ run)
+    nvram_write("c_last_messages",0)  # sent messages
 
 while True:
     # interval logic: every time the counter iszero (0), a message is sent
