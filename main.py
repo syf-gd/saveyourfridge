@@ -52,6 +52,7 @@ import os
 import sys
 from network import Sigfox
 from machine import WDT
+import machine
 import socket
 import binascii
 import struct
@@ -78,11 +79,11 @@ def console(message):
 
 def nvram_read(key):
     ret=pycom.nvs_get(key)
-    console("NVRAM read '%s'=%s" % (str(key), str(ret)))
+#    console("NVRAM read '%s'=%s" % (str(key), str(ret)))
     return ret
 
 def nvram_write(key,value):
-    console("NVRAM write '%s'=%s" % (str(key), str(value)))
+#    console("NVRAM write '%s'=%s" % (str(key), str(value)))
     pycom.nvs_set(key, int(value))
 
 def led_blink(color,duration,loop=1):
@@ -135,6 +136,7 @@ sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, True) # true=downlink
 device_id = binascii.hexlify(sigfox.id())
 device_pac = binascii.hexlify(sigfox.pac())
 wake_up_reason=py.get_wake_reason()
+reset_reason=machine.reset_cause()
 
 if disable_low_power_on_usb == 1:
     if battery_voltage > usb_power_voltage_indication:
@@ -147,6 +149,7 @@ if low_power_consumption_mode == 0:
 else:
     led_duration = 0.2
 
+# https://docs.pycom.io/pytrackpysense/apireference/sleep.html
 # WAKE_REASON_POWERON = 0       # Accelerometer activity/inactivity detection
 # WAKE_REASON_ACCELEROMETER = 1 # Accelerometer activity/inactivity detection
 # WAKE_REASON_PUSH_BUTTON = 2   # Pytrack/Pysense reset buttom
@@ -155,6 +158,15 @@ else:
 console("Wakeup reason               : %s (last saved reason: %s)" % (str(wake_up_reason), str(nvram_read('saved_wu_status'))))
 # lwus=last wake-up status
 nvram_write('saved_wu_status', int(wake_up_reason))
+
+# https://docs.micropython.org/en/latest/library/machine.WDT.html
+# PWRON_RESET=0
+# HARD_RESET=1
+# WDT_RESET=2
+# DEEPSLEEP_RESET=3
+# SOFT_RESET=4
+console("Reset reason                : %s (last saved reason: %s)" % (str(reset_reason),str(nvram_read('saved_r_status'))))
+nvram_write('saved_r_status', int(reset_reason))
 
 
 console("DEVICE ID                   : %s" % (device_id))
@@ -168,7 +180,7 @@ wdt.feed()
 
 if do_signal_test == 1 and wake_up_reason != 4:
     # do signal test only if booted up and option is set
-    led_blink(color_white, led_duration, 3)
+    led_blink(color_white, 0.2, 3)
 
     # test uplink/downlink - if successful, send green light, else red light
     signal_strength=-500        # default value
@@ -209,6 +221,9 @@ if do_signal_test == 1 and wake_up_reason != 4:
 # sigfox: change to uplink messages only
 sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False) # false=only uplink
 if wake_up_reason != 4:
+    if wake_up_reason == 0:
+        # reset nvram
+        pycom.nvs_erase_all()
     # reset vars if re-powered by USB/battery (not by deep sleep)
     nvram_write('interval', 0)        # waiting time interval countdown
     nvram_write('last_temp', 0)       # save of last temperature (to detect anomaly)
