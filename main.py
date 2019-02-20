@@ -149,6 +149,7 @@ if low_power_consumption_mode == 0:
 else:
     led_duration = 0.2
 
+console("Warranty void               : %s" % (str(nvram_read('warranty_void'))))
 # https://docs.pycom.io/pytrackpysense/apireference/sleep.html
 # WAKE_REASON_POWERON = 0       # Accelerometer activity/inactivity detection
 # WAKE_REASON_ACCELEROMETER = 1 # Accelerometer activity/inactivity detection
@@ -211,6 +212,7 @@ if do_signal_test == 1 and wake_up_reason != 4:
     if signal_strength < rssi_dbm_limit:
         console("ERROR: signal stregth below limit: %s < %s" % (str(signal_strength),str(rssi_dbm_limit)))
         nvram_write('no_signaltest', 1)
+        nvram_write('warranty_void', 1)
         for x in range(20):
             # if duration = 0, permanent on
             pycom.rgbled(color_orange)
@@ -235,9 +237,9 @@ nvram_write('no_signaltest', 0)
 # sigfox: change to uplink messages only
 sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False) # false=only uplink
 if wake_up_reason != 4:
-    if wake_up_reason == 0:
-        # reset nvram
-        pycom.nvs_erase_all()
+#    if wake_up_reason == 0:
+#        # reset nvram
+#        pycom.nvs_erase_all()
     # reset vars if re-powered by USB/battery (not by deep sleep)
     nvram_write('interval', 0)        # waiting time interval countdown
     nvram_write('last_temp', 0)       # save of last temperature (to detect anomaly)
