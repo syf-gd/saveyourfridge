@@ -96,6 +96,7 @@ def led_blink(color,duration,loop=1):
             if duration > 0:
                 time.sleep(duration)
                 pycom.rgbled(color_black)
+                time.sleep(duration)
     else:
         while True:
             console("LED on: %s, %s, %s" % (str(color), str(duration), str(loop)))
