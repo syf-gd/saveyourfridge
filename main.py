@@ -13,7 +13,8 @@
 # ################################################################
 # ########   Variables
 # ################################################################
-measurement_interval=300            # #[30]=seconds a measurement will be done (300=>5 minutes)
+watchdog_timeout=1200               # # [1200]=seconds watchdoch will reboot system if system get unresponsive  (1200=>20min)
+measurement_interval=300            # #[300]=seconds a measurement will be done (300=>5 minutes)
 transmission_interval=900           # #[900]=seconds a message will be sent (independently of alarm) (900=>15 minutes)
 temperature_compression_factor=2    # #[2]=factor of temperature compression 
 temperature_correction_factor=80    # #[80]=temperature correction factor
@@ -125,7 +126,7 @@ pycom.heartbeat(False)
 
 gc.enable()
 
-wdt = WDT(timeout=1200000)  # enable it with a timeout of 1 seconds (1000)*1200 (=20min)
+wdt = WDT(timeout=(())watchdog_timeout)*1000))
 wdt.feed()
 
 battery_voltage=py.read_battery_voltage()
