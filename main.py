@@ -126,7 +126,7 @@ pycom.heartbeat(False)
 
 gc.enable()
 
-wdt = WDT(timeout=(())watchdog_timeout)*1000))
+wdt = WDT(timeout=((watchdog_timeout)*1000))
 wdt.feed()
 
 battery_voltage=py.read_battery_voltage()
@@ -193,7 +193,7 @@ if do_signal_test == 1 and wake_up_reason != 4:
     console("Strength test message sent...")
     try:
         error_position="send"
-        sigfox_network.send(bytes([255,255,0]))
+        sigfox_network.send(bytes([protocol_version,255,255])) # 255=FF
 
         error_position="send2"
         console("waiting for feedback message")
@@ -278,7 +278,7 @@ while True:
             # sending alarm if anomaly detected
             console("=====> Sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
             led_blink(color_red, led_duration)
-            send_sigfox_message(bytes([protocol_version,now_temperature]))
+            send_sigfox_message(bytes([protocol_version,now_temperature,238])) # 238=EE
             led_blink(color_black, led_duration)
             nvram_write('interval',999) # set interval to limit, so next loop the cycle is starting over
             wdt.feed()
