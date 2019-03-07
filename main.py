@@ -29,10 +29,12 @@ usb_power_voltage_indication=4.2    # #[4.2]=voltage limit to detect usb connect
 
 # protocol versions:
 # (1)   initial version
-#       AABB; AA=protocaol version, BB=temperature
+#       AABB[CC]; AA=protocaol version, BB=temperature, CC=status codes
 # (?)
-#
-# (255) FFFF00; AA=protocol version; 00=signal test message (3 Bytes!)
+# Status codes: 
+# EE    238 temperature error/warning
+# FE    254 manual signalcheck override
+# FF    255 signal check
 
 # ################################################################
 # ################################################################
@@ -62,6 +64,9 @@ from pysense import Pysense
 from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
 import gc
 import time
+
+sensor_data={}
+py = Pysense()
 
 def countInterval():
     interval = int(nvram_read('interval'))
@@ -116,7 +121,11 @@ def send_sigfox_message(message):
     except:
         led_signal_error
 
-py = Pysense()
+def get_sensor_data():
+    check_data={}
+    check_data['original']=MPL3115A2(py,mode=ALTITUDE).temperature()
+    check_data['now']=int(check_data['original']*temperature_compression_factor+temperature_correction_factor)
+    return check_data
 
 
 # ################################################################
@@ -190,7 +199,7 @@ if do_signal_test == 1 and wake_up_reason != 4:
 
     # test uplink/downlink - if successful, send green light, else red light
     signal_strength=-500        # default value
-    console("Strength test message sent...")
+    console("=====> Sending signaltest message... (v:%s, s.: FF)" % (protocol_version))
     try:
         error_position="send"
         sigfox_network.send(bytes([protocol_version,255,255])) # 255=FF
@@ -229,6 +238,16 @@ if do_signal_test == 1 and wake_up_reason != 4:
         nvram_write('signaltest_done', 1)
     wdt.feed()
     led_blink(color_black,led_duration)
+else:
+    # override signal test
+    led_blink(color_blue, led_duration)
+    console("Measuring temperature...")
+    sensor_data = get_sensor_data()
+    console("=====> Sending signaltest override message... (v:%s, s.: FE, temp.: %s)" % (protocol_version, sensor_data['now']))
+    led_blink(color_green, led_duration)
+    send_sigfox_message(bytes([protocol_version,0,245]))
+    led_blink(color_black, led_duration)
+
 
 # reset savestate for signal test overruling
 nvram_write('no_signaltest', 0)
@@ -261,39 +280,35 @@ while True:
         nvram_write('interval', 0)
         
     # round to floor
-    led_blink(color_blue, led_duration)
-    console("Measuring temperature...")
-    original_temperature=MPL3115A2(py,mode=ALTITUDE).temperature()
-    now_temperature = int(original_temperature*temperature_compression_factor+temperature_correction_factor)
-    led_blink(color_black, led_duration)
+    sensor_data = get_sensor_data()
 
     console("Interval countdown  : %s < %s" % (str(nvram_read('interval')),str(interval_max)))
-    console("Temperature (now)   : %s ((temp-%s)/%s=%s)" % (now_temperature, temperature_correction_factor, temperature_compression_factor, original_temperature))
+    console("Temperature (now)   : %s ((temp-%s)/%s=%s)" % (sensor_data['now'], temperature_correction_factor, temperature_compression_factor, sensor_data['original']))
     console("Temperature (last)  : %s ((temp-%s)/%s)"  % (nvram_read('last_temp'), temperature_correction_factor, temperature_compression_factor))
     console("Temperature anomaly : %s (>=)" % (anomaly_detection_difference))
     wdt.feed()
 
     if nvram_read('first_run') != 1:
-        if now_temperature >= (nvram_read('last_temp') + anomaly_detection_difference):
+        if sensor_data['now'] >= (nvram_read('last_temp') + anomaly_detection_difference):
             # sending alarm if anomaly detected
-            console("=====> Sending alarm... (red:%s;v:%s)" % (now_temperature, protocol_version))
+            console("=====> Sending alarm... (red;v:%s, s.:DD, temp.:%s)" % (protocol_version,sensor_data['now']))
             led_blink(color_red, led_duration)
-            send_sigfox_message(bytes([protocol_version,now_temperature,238])) # 238=EE
-            led_blink(color_black, led_duration)
+            send_sigfox_message(bytes([protocol_version,sensor_data['now'],238])) # 238=EE
             nvram_write('interval',999) # set interval to limit, so next loop the cycle is starting over
+            led_blink(color_black, led_duration)
             wdt.feed()
 
     # sending first run and normal if counter reaches limit
     if nvram_read('interval') == 0:
-            console("=====> Sending... (green:%s;v:%s)" % (now_temperature,protocol_version))
+            console("=====> Sending... (green;v:%s,temp.:%s)" % (protocol_version,sensor_data['now']))
             led_blink(color_green, led_duration)
-            send_sigfox_message(bytes([protocol_version,now_temperature]))
-            wdt.feed()
+            send_sigfox_message(bytes([protocol_version,sensor_data['now']]))
             led_blink(color_black, led_duration)
+            wdt.feed()
 
     countInterval()
 
-    nvram_write('last_temp', now_temperature )
+    nvram_write('last_temp', sensor_data['now'] )
     nvram_write('first_run', 0)
 
     wdt.feed()
