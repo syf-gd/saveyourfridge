@@ -245,7 +245,7 @@ else:
     sensor_data = get_sensor_data()
     console("=====> Sending signaltest override message... (v:%s, s.: FE, temp.: %s)" % (protocol_version, sensor_data['now']))
     led_blink(color_green, led_duration)
-    send_sigfox_message(bytes([protocol_version,0,245]))
+    send_sigfox_message(bytes([protocol_version,0,254]))
     led_blink(color_black, led_duration)
 
 
