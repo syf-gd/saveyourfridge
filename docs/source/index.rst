@@ -1,5 +1,3 @@
-:github_url: https://github.com/syf-gd/saveyourfridge/
-
 Welcome to Save Your Fridge's documentation!
 ============================================
 
