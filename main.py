@@ -30,10 +30,12 @@ usb_power_voltage_indication=4.2    # #[4.2]=voltage limit to detect usb connect
 
 # protocol versions:
 # (1)   initial version
-#       AABB; AA=protocaol version, BB=temperature
+#       AABB[CC]; AA=protocaol version, BB=temperature, CC=status codes
 # (?)
-#
-# (255) FFFF00; AA=protocol version; 00=signal test message (3 Bytes!)
+# Status codes: 
+# EE    238 temperature error/warning
+# FE    254 manual signalcheck override
+# FF    255 signal check
 
 # ################################################################
 # ################################################################
@@ -64,8 +66,14 @@ from MPL3115A2 import MPL3115A2,ALTITUDE,PRESSURE
 import gc
 import time
 
+<<<<<<< HEAD
 # Function to count the interval of the measurement cycle in the NVRAM
 # Depending on the Settings a full interval sends a sigfox message
+=======
+sensor_data={}
+py = Pysense()
+
+>>>>>>> 7a06b1230507175017505619a666eef96c6b735c
 def countInterval():
     """ This Function is reading the current interval count from the NVRMA and
     is adding 1 when called """
@@ -158,7 +166,11 @@ def send_sigfox_message(message):
     except:
         led_signal_error
 
-py = Pysense()
+def get_sensor_data():
+    check_data={}
+    check_data['original']=MPL3115A2(py,mode=ALTITUDE).temperature()
+    check_data['now']=int(check_data['original']*temperature_compression_factor+temperature_correction_factor)
+    return check_data
 
 # ################################################################
 # ########   main
@@ -168,8 +180,17 @@ def main():
 
     gc.enable()
 
+<<<<<<< HEAD
     wdt = WDT(timeout=((watchdog_timeout)*1000))
     wdt.feed()
+=======
+    # test uplink/downlink - if successful, send green light, else red light
+    signal_strength=-500        # default value
+    console("=====> Sending signaltest message... (v:%s, s.: FF)" % (protocol_version))
+    try:
+        error_position="send"
+        sigfox_network.send(bytes([protocol_version,255,255])) # 255=FF
+>>>>>>> 7a06b1230507175017505619a666eef96c6b735c
 
     battery_voltage=py.read_battery_voltage()
 
@@ -230,16 +251,37 @@ def main():
         # do signal test only if booted up and option is set
         led_blink(color_white, 0.2, 3)
 
+<<<<<<< HEAD
         # test uplink/downlink - if successful, send green light, else red light
         signal_strength=-500        # default value
         console("Strength test message sent...")
         try:
             error_position="send"
             sigfox_network.send(bytes([protocol_version,255,255])) # 255=FF
+=======
+        nvram_write('no_signaltest', 0)
+        led_signal_error()
+    else:
+        console("Signal stregth valid : %s >= %s" % (str(signal_strength),str(rssi_dbm_limit)))
+        nvram_write('signaltest_done', 1)
+    wdt.feed()
+    led_blink(color_black,led_duration)
+else:
+    # override signal test
+    led_blink(color_blue, led_duration)
+    console("Measuring temperature...")
+    sensor_data = get_sensor_data()
+    console("=====> Sending signaltest override message... (v:%s, s.: FE, temp.: %s)" % (protocol_version, sensor_data['now']))
+    led_blink(color_green, led_duration)
+    send_sigfox_message(bytes([protocol_version,0,254]))
+    led_blink(color_black, led_duration)
+
+>>>>>>> 7a06b1230507175017505619a666eef96c6b735c
 
             error_position="send2"
             console("waiting for feedback message")
 
+<<<<<<< HEAD
             error_position="recv"
             sigfox_network.recv(32)
 
@@ -263,6 +305,61 @@ def main():
                 time.sleep(0.2)
                 pycom.rgbled(color_black)
                 time.sleep(0.2)
+=======
+# ################################################################
+# ########   measurement loop
+# ################################################################
+# sigfox: change to uplink messages only
+sigfox_network.setsockopt(socket.SOL_SIGFOX, socket.SO_RX, False) # false=only uplink
+if wake_up_reason != 4:
+#    if wake_up_reason == 0:
+#        # reset nvram
+#        pycom.nvs_erase_all()
+    # reset vars if re-powered by USB/battery (not by deep sleep)
+    nvram_write('interval', 0)        # waiting time interval countdown
+    nvram_write('last_temp', 0)       # save of last temperature (to detect anomaly)
+    nvram_write('first_run', 1)       # save of first run status (1=first run;0=second+ run)
+    nvram_write("c_last_messages",0)  # sent messages
+
+while True:
+    # interval logic: every time the counter iszero (0), a message is sent
+    # counter will be counted up from zero to "interval_max"
+    # counter is resetted if it reaches interval_max (equal or beyond)
+    # benefit: after a restart, the initial message is sent
+    interval_max = transmission_interval/measurement_interval
+    if nvram_read('interval') >= interval_max:
+        nvram_write('interval', 0)
+    if send_data_every_interval == 1:
+            # if data should be sent every time, the var 'interval' have to be reset
+        nvram_write('interval', 0)
+        
+    # round to floor
+    sensor_data = get_sensor_data()
+
+    console("Interval countdown  : %s < %s" % (str(nvram_read('interval')),str(interval_max)))
+    console("Temperature (now)   : %s ((temp-%s)/%s=%s)" % (sensor_data['now'], temperature_correction_factor, temperature_compression_factor, sensor_data['original']))
+    console("Temperature (last)  : %s ((temp-%s)/%s)"  % (nvram_read('last_temp'), temperature_correction_factor, temperature_compression_factor))
+    console("Temperature anomaly : %s (>=)" % (anomaly_detection_difference))
+    wdt.feed()
+
+    if nvram_read('first_run') != 1:
+        if sensor_data['now'] >= (nvram_read('last_temp') + anomaly_detection_difference):
+            # sending alarm if anomaly detected
+            console("=====> Sending alarm... (red;v:%s, s.:DD, temp.:%s)" % (protocol_version,sensor_data['now']))
+            led_blink(color_red, led_duration)
+            send_sigfox_message(bytes([protocol_version,sensor_data['now'],238])) # 238=EE
+            nvram_write('interval',999) # set interval to limit, so next loop the cycle is starting over
+            led_blink(color_black, led_duration)
+            wdt.feed()
+
+    # sending first run and normal if counter reaches limit
+    if nvram_read('interval') == 0:
+            console("=====> Sending... (green;v:%s,temp.:%s)" % (protocol_version,sensor_data['now']))
+            led_blink(color_green, led_duration)
+            send_sigfox_message(bytes([protocol_version,sensor_data['now']]))
+            led_blink(color_black, led_duration)
+            wdt.feed()
+>>>>>>> 7a06b1230507175017505619a666eef96c6b735c
 
             nvram_write('no_signaltest', 0)
             led_signal_error()
@@ -312,6 +409,7 @@ def main():
         console("Temperature anomaly : %s (>=)" % (anomaly_detection_difference))
         wdt.feed()
 
+<<<<<<< HEAD
         if nvram_read('first_run') != 1:
             if now_temperature >= (nvram_read('last_temp') + anomaly_detection_difference):
                 # sending alarm if anomaly detected
@@ -334,6 +432,10 @@ def main():
 
         nvram_write('last_temp', now_temperature )
         nvram_write('first_run', 0)
+=======
+    nvram_write('last_temp', sensor_data['now'] )
+    nvram_write('first_run', 0)
+>>>>>>> 7a06b1230507175017505619a666eef96c6b735c
 
         wdt.feed()
         if low_power_consumption_mode == 0:
